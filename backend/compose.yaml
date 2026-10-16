@@ -1,0 +1,31 @@
+# Local development database for the backend module.
+#
+# Used by spring-boot-docker-compose: running the app with `./mvnw spring-boot:run`
+# starts this Postgres automatically and wires the datasource. Credentials and port
+# match the defaults in application.yml so that `docker compose up -d` followed by
+# a plain run also works.
+#
+# The full-stack compose file (all modules) lives at the repository root.
+services:
+  postgres:
+    image: 'postgres:18-alpine'
+    environment:
+      - 'POSTGRES_DB=portfolio'
+      - 'POSTGRES_USER=portfolio'
+      - 'POSTGRES_PASSWORD=portfolio'
+    ports:
+      - '5432:5432'
+    volumes:
+      # Postgres 18+ wants a single mount at /var/lib/postgresql (data then lives in
+      # a major-version subdirectory, e.g. /var/lib/postgresql/18/docker) so that
+      # pg_upgrade --link works across image upgrades.
+      # https://github.com/docker-library/postgres/pull/1259
+      - 'postgres-data:/var/lib/postgresql'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U portfolio -d portfolio']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-data:

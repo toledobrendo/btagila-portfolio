@@ -1,0 +1,54 @@
+# ---------------------------------------------------------------------------
+# Root .gitignore — applies across the monorepo (backend/, frontend/, admin/).
+#
+# Module-level .gitignore files add module-specific rules; this file is the
+# safety net so build outputs and local config never land in git, wherever
+# they appear. ROADMAP.md item 1.4: exclude data/, build outputs, .env.
+# ---------------------------------------------------------------------------
+
+# --- Dependencies -----------------------------------------------------------
+node_modules/
+
+# --- Build outputs ----------------------------------------------------------
+# frontend + admin static output
+dist/
+# Maven
+target/
+build/
+# Astro generated types
+.astro/
+*.tsbuildinfo
+
+# --- Runtime data -----------------------------------------------------------
+# Uploaded photo originals and generated image variants, MEDIA_STORAGE_PATH
+# (backend/data/ locally, a mounted volume in deployment — ARCHITECTURE.md §6).
+data/
+
+# --- Local configuration and secrets ----------------------------------------
+.env
+.env.*
+# Template files are committed on purpose — they document what to configure.
+!.env.example
+# Vite convention: .env.local, …
+*.local
+
+# --- Logs -------------------------------------------------------------------
+logs/
+*.log
+
+# --- Playwright test output (Phases 5, 6, 7) --------------------------------
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+
+# --- Editors and OS state ---------------------------------------------------
+# Editor config stays local: backend/.gitignore already ignores .idea and
+# .vscode, so this keeps the policy consistent for every module.
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.iml
+*.iws
+*.ipr

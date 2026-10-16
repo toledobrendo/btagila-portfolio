@@ -1,0 +1,65 @@
+# Portfolio backend — configuration
+#
+# 12-factor: every environment-specific value comes from an environment variable
+# with a local-development default, so the same image runs locally, on the VPS,
+# and on k3s unchanged.
+
+spring:
+  application:
+    name: portfolio-backend
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/portfolio}
+    username: ${DB_USERNAME:portfolio}
+    password: ${DB_PASSWORD:portfolio}
+
+  jpa:
+    # The schema is owned by Flyway migrations in classpath:db/migration.
+    # Hibernate must never create or alter tables (see persistence/package-info.java).
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  servlet:
+    multipart:
+      # Originals are accepted up to 25 MB each; batches up to 100 MB per request.
+      max-file-size: 25MB
+      max-request-size: 100MB
+
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+
+spring.lifecycle.timeout-per-shutdown-phase: 20s
+
+# Liveness/readiness groups are exposed for container probes (Compose healthcheck
+# today, Kubernetes probes later).
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+app:
+  # Where originals and generated image variants are stored. Mounted as a volume
+  # in every deployment target (see ARCHITECTURE.md §1).
+  media:
+    storage-path: ${MEDIA_STORAGE_PATH:./data/media}
+  # Origins allowed to call the admin API. The admin app runs on the photographer's
+  # local machine, so these are local origins — never a wildcard (ARCHITECTURE.md §6).
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:4321}

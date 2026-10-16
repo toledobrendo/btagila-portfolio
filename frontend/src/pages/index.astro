@@ -1,0 +1,28 @@
+---
+import '../styles/global.css';
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<link rel="icon" href="/favicon.ico" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="generator" content={Astro.generator} />
+		<title>Portrait portfolio — scaffold</title>
+	</head>
+	<body class="min-h-screen bg-neutral-950 text-neutral-100 antialiased">
+		<main class="mx-auto flex min-h-screen max-w-2xl flex-col justify-center gap-4 px-6">
+			<h1 class="text-3xl font-light tracking-tight">Portrait portfolio</h1>
+			<p class="text-neutral-400">
+				Frontend scaffold (Phase 1.2). Tailwind is wired up; the design system and real
+				pages arrive in Phase 6.
+			</p>
+			<p class="text-sm text-neutral-500">
+				Gallery data is fetched from the API at build time. Images are served by the
+				backend from its media volume.
+			</p>
+		</main>
+	</body>
+</html>

@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens for the admin are intentionally minimal for now. The public site's
+ * design system (Phase 6) owns the visual language; if the two should share tokens,
+ * that becomes a shared package rather than a copy.
+ */
