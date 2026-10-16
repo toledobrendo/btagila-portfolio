@@ -113,7 +113,7 @@ sequenceDiagram
     participant FE as frontend image
 
     Ph->>Admin: select photos (drag & drop)
-    Admin->>API: POST /admin/photos (multipart, JWT)
+    Admin->>API: POST /admin/albums/{id}/photos (multipart, JWT)
     API->>API: validate type/size, sanitize filename
     API->>Vol: store original
     API->>API: generate sizes + WebP variants
@@ -131,7 +131,7 @@ sequenceDiagram
     API->>API: mark "content dirty" — debounce window
     API-->>CI: trigger rebuild (mechanism: see §7)
 
-    CI->>API: GET /api/galleries (build-time, public endpoints)
+    CI->>API: GET /api/albums (build-time, public endpoints)
     CI->>FE: build Astro site with new content
     CI->>CI: push frontend image
     CI->>FE: deploy new image tag
@@ -201,7 +201,7 @@ erDiagram
 
 ```mermaid
 graph LR
-    SPEC["openapi.yaml<br/>single source of truth"]
+    SPEC["openapi/openapi.yaml<br/>single source of truth"]
     SPEC -->|generate| TSC["TypeScript client<br/>(frontend + admin)"]
     SPEC -->|generate| CT["Contract tests<br/>(backend)"]
     SPEC -->|docs| DOCS["API documentation"]

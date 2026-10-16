@@ -1,0 +1,14 @@
+# Linter configuration for openapi.yaml.
+#
+# Run it from the repository root (no local Node needed — the image is pinned):
+#
+#   docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -e npm_config_cache=/tmp/.npm \
+#     -v "$PWD":/work -v /tmp/opencode/npm-cache:/tmp/.npm -w /work node:22-alpine \
+#     sh -c "npx --yes @stoplight/spectral-cli lint openapi/openapi.yaml --ruleset openapi/.spectral.yaml"
+#
+# The explicit --ruleset is required: Spectral looks for the config relative to the
+# working directory, not the spec file.
+#
+# "spectral:oas" is the official OpenAPI ruleset. It is wired into CI in Phase 7.
+extends:
+  - "spectral:oas"
