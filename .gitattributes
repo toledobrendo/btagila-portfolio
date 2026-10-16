@@ -1,0 +1,22 @@
+# Line endings are normalised in the repository, independent of each
+# machine's core.autocrlf setting. This project is worked on from Linux
+# and Windows; the Linux machine has core.autocrlf=true, which would
+# otherwise check shell scripts out with CRLF and break them with
+# "\r: command not found" — including ./mvnw inside Docker builds.
+* text=auto
+
+# Shell scripts and the Maven wrapper must stay LF wherever they land.
+*.sh text eol=lf
+mvnw text eol=lf
+
+# Windows scripts keep CRLF by convention.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Binary assets are never normalised.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.pdf binary
