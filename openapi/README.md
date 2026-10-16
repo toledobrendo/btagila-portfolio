@@ -36,8 +36,10 @@ docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -e npm_config_cache=/tmp
 `--ruleset` is explicit because Spectral resolves its config relative to the working
 directory, not the spec file. Phase 7 wires this into CI.
 
-To read the API as documentation rather than YAML, run the backend and open
-<http://localhost:8080/swagger-ui.html> — or drop `openapi.yaml` into any OpenAPI viewer.
+To read the API as documentation rather than YAML, drop `openapi.yaml` into any OpenAPI
+viewer. The backend's own Swagger UI (`/swagger-ui.html`, `/v3/api-docs`) is already wired
+up but sits behind Spring Security's default chain until Phase 4, so it returns `401`
+today — it becomes usable once the security configuration lands.
 
 ## Decisions this contract fixes
 
