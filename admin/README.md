@@ -106,7 +106,7 @@ vite.config.ts      React + Tailwind plugins
 ## Notes
 
 - **Linting is oxlint**, not ESLint — that is what create-vite 9 generates for React
-  templates. If the CI conventions in Phase 7 need ESLint specifically, this is the file
+  templates. If the CI conventions in Phase 9 need ESLint specifically, this is the file
   to revisit.
 - **Auth token handling** follows `../ARCHITECTURE.md` §6: JWT in the `Authorization`
   header, held in memory with a short expiry rather than `localStorage`.

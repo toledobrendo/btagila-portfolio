@@ -57,7 +57,7 @@ docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -e npm_config_cache=/tmp
   sh -c "npm run build && npm run preview -- --host 0.0.0.0 --port 4321"
 ```
 
-**Static files, served the way Phase 8 will serve them** — plain nginx over `dist/`:
+**Static files, served the way Phase 10 will serve them** — plain nginx over `dist/`:
 
 ```bash
 docker run --rm -p 8080:80 -v "$PWD/dist":/usr/share/nginx/html:ro nginx:alpine
@@ -108,12 +108,12 @@ src/
 ├── pages/          file-based routes (index.astro, gallery/, about, contact …)
 ├── styles/
 │   └── global.css  Tailwind entry: @import "tailwindcss"
-└── (layouts, components, lib → arrive with the design system in Phase 6)
+└── (layouts, components, lib → arrive with the design system in Phase 8)
 
 public/             static assets served as-is (favicon, …)
 astro.config.mjs    static output, Tailwind via the Vite plugin
 tsconfig.json       extends astro/tsconfigs/strict
 ```
 
-Design tokens and the real page set are Phase 6 of `../ROADMAP.md`. The OpenAPI contract
+Design tokens and the real page set are Phase 8 of `../ROADMAP.md`. The OpenAPI contract
 that this site fetches from is Phase 1.5.

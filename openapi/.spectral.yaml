@@ -9,6 +9,6 @@
 # The explicit --ruleset is required: Spectral looks for the config relative to the
 # working directory, not the spec file.
 #
-# "spectral:oas" is the official OpenAPI ruleset. It is wired into CI in Phase 7.
+# "spectral:oas" is the official OpenAPI ruleset. It is wired into CI in Phase 9.
 extends:
   - "spectral:oas"

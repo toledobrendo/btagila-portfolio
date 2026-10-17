@@ -130,7 +130,10 @@ sequenceDiagram
     Ph->>Admin: publish
     Admin->>API: PATCH /admin/albums/{id}/publish
     API->>DB: status=published
-    API->>API: mark "content dirty" — debounce window
+    Note over API,CI: no auto-trigger — publishing alone never rebuilds (§7, decision A)
+
+    Ph->>Admin: click "Rebuild site"
+    Admin->>API: POST /admin/rebuild (JWT)
     API-->>CI: trigger rebuild (mechanism: see §7)
 
     CI->>API: GET /api/albums (build-time, public endpoints)
@@ -242,7 +245,7 @@ On the budget path this is a non-issue — there is only *one* host, so RWO (or 
 - Token storage tradeoff: `localStorage` is simplest but XSS-exposed; **in-memory token + short expiry + refresh** is the better middle ground for an admin app.
 - Images served by the backend should carry `Cache-Control: immutable` on content-hashed renditions plus `ETag`, since every image byte flows through the backend process.
 
-## 7. Content-change trigger (open — options)
+## 7. Content-change trigger (decided)
 
 The public site is static, so published changes only appear after a **frontend rebuild**. Publishing therefore needs to kick off: *build image → push → roll out new tag*.
 
@@ -255,6 +258,33 @@ The public site is static, so published changes only appear after a **frontend r
 | **E. Drop static — frontend becomes SSR** | Node adapter; pages render per request, no rebuild ever | Instant publish, no pipeline at all | A permanent runtime pod, more attack surface, loses "static" simplicity; contradicts earlier choice |
 | **F. Runtime client-side fetch** | Browser fetches content from the API | No rebuild | Kills build-time SEO and first paint — bad for a portfolio; rejected |
 
-**Recommended path:** start with **A** (manual button + nightly cron) to get publish working with zero CI plumbing, then graduate to **C** (auto + debounce) once the flow is proven. Add **D** only if the cluster already runs a GitOps controller.
+**Decision: A** — the manual "Rebuild site" button plus a nightly cron, to get publish working
+with zero CI plumbing and no debounce machinery. Publishing never triggers a build on its own,
+so the accepted trade-off is staleness if the button is forgotten — and the cron bounds that to
+a day. Option **C** (auto + debounce) stays the documented growth path; add **D** only if the
+cluster already runs a GitOps controller.
 
 Mechanically, the CI job needs: the public API base URL (read-only, no auth), and — for the deploy step — a way to roll the frontend onto the host (Compose: pull new tag + `up -d`; k3s: `kubectl rollout` or GitOps taking over that step).
+
+### What a debounce (option C) would involve — *not chosen; kept as the growth path*
+
+"Debounce" is one word for a small state machine. The moving parts, and why each exists:
+
+1. **The signal.** Every publish (photo, album, category) sets a `content_dirty` marker — a timestamp in the DB, updated in the *same transaction* as the publish. Cheap and crash-safe (unlike an in-memory flag, which loses a pending rebuild on restart — the nightly cron is the backstop for that).
+2. **The window.** A `@Scheduled` job (every ~30 s) asks: *is there a dirty marker, and has it been stable for T?* If yes, fire the trigger and clear the marker. A change arriving mid-window pushes T out — that sliding behaviour is the "debounce", and it is what collapses a 30-photo upload session into one build.
+3. **A ceiling.** Pure debounce can starve: someone editing continuously for an hour never gets a build. Add a max-delay ("fire at least every ~10 min even if changes keep coming") — which makes it a *throttle with trailing edge*, the standard practical compromise.
+4. **Single-flight.** While a build is running, don't start a second one — either coalesce (re-mark dirty, fire when the current build finishes) or accept overlap. Coalescing needs the backend to know when a build *finished*, which is the awkward part: it means polling CI, receiving a webhook/callback, or simply not knowing (and relying on builds being shorter than the window).
+5. **Failure handling.** If the trigger fails (CI down, token bad), the marker must **not** be cleared — otherwise the change silently never ships, which is the worst failure mode here, because nothing looks broken. Silent staleness is what makes the nightly cron non-optional.
+
+What it costs: the backend stops being a purely passive API and owns a timer plus a small piece of build state (`dirty`, ideally `last_build_started`/`last_build_finished`). What it buys: a publish is visible in minutes, with no button to remember. What it never gives you: instant visibility — a publish is *eventually* consistent by design, bounded by `window + max-delay`.
+
+The honest alternative: **option A only** (manual button + nightly cron). The photographer publishes, clicks "Rebuild site" once, done. No timer, no build state, no silent-staleness failure mode — at the cost of one click. Debounce is only worth building if that click is the thing you want to remove.
+
+### Knowing a rebuild landed
+
+The `202` from `POST /admin/rebuild` means *accepted*, not *done* — so there needs to be a signal that the change actually shipped. The chosen answer (USE-CASES.md §7 #6) is a **build date in the public footer**, injected at build time (never from the visitor's clock), optionally alongside the git SHA.
+
+Two things to keep straight:
+
+- It reports **"last built"**, not "last changed" — a nightly rebuild advances it even when nothing changed. That is the honest label for what it measures.
+- It is a *public* signal. The photographer can also watch the CI run directly; the footer just makes "did it land?" answerable without leaving the site.

@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Portfolio API
-  version: 0.1.0
+  version: 0.2.0
   summary: REST API for a portrait photographer portfolio — public reads, media files, and admin operations.
   contact:
     name: Portfolio project — backend, public frontend, admin
@@ -131,7 +131,8 @@ paths:
       summary: List published albums
       description: |
         Published albums only. Each item embeds its category and cover photo so the
-        gallery index renders from one request.
+        gallery index renders from one request; when no cover is picked, the cover
+        falls back to the first **published** photo.
       parameters:
         - name: category
           in: query
@@ -373,6 +374,39 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
 
+  /admin/categories/{id}/publish:
+    patch:
+      operationId: setCategoryPublished
+      tags: [admin categories]
+      summary: Publish or unpublish a category
+      description: |
+        Symmetric with `PATCH /admin/albums/{id}/publish`, so the UI toggles visibility
+        without a full replacement. Also marks content "dirty" for the rebuild trigger
+        (ARCHITECTURE.md §7).
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CategoryId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishRequest'
+      responses:
+        '200':
+          description: Updated category.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /admin/albums:
     get:
       operationId: listAdminAlbums
@@ -540,6 +574,32 @@ paths:
           $ref: '#/components/responses/NotFound'
 
   /admin/albums/{id}/photos:
+    parameters:
+      - $ref: '#/components/parameters/AlbumId'
+    get:
+      operationId: listAdminAlbumPhotos
+      tags: [admin photos]
+      summary: List an album's photos, drafts included
+      description: |
+        Every photo in the album, drafts included, in display order — what the admin
+        album screen renders. Use `GET /api/albums/{slug}/photos` for published photos
+        only.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: A page of photos, drafts included.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageOfPhoto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
     post:
       operationId: uploadPhotos
       tags: [admin photos]
@@ -550,12 +610,13 @@ paths:
         generated synchronously before the response — never on demand. Photos are
         created as **drafts**.
 
+        **Atomic**: if any file in the batch fails validation, nothing is persisted
+        and the whole request is rejected — an album is never half-imported.
+
         Limits: **25 MB per file**, **100 MB per request** (typically 4–12 files).
         Originals are expected to be ≤ 2048 px on the longest side.
       security:
         - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/AlbumId'
       requestBody:
         required: true
         content:
@@ -631,7 +692,12 @@ paths:
       operationId: updatePhoto
       tags: [admin photos]
       summary: Update a photo's metadata
-      description: Partial update — title, alt text, sort order, published flag.
+      description: |
+        Partial update — title, alt text, sort order, published flag.
+
+        Setting `published: true` on a photo whose `altText` is empty is **rejected**
+        (`400`): accessibility text is a precondition for publication, enforced here as
+        well as in the admin UI.
       security:
         - bearerAuth: []
       requestBody:
@@ -648,7 +714,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/Photo'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          description: >-
+            Invalid body, or `published: true` with an empty `altText`.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -657,7 +728,9 @@ paths:
       operationId: deletePhoto
       tags: [admin photos]
       summary: Delete a photo
-      description: Deletes the row and every pre-generated rendition on disk.
+      description: >-
+        Deletes the row and every pre-generated rendition on disk. If the photo was an
+        album's cover, the album's cover reference is cleared — the album is not deleted.
       security:
         - bearerAuth: []
       responses:
@@ -674,9 +747,11 @@ paths:
       tags: [admin rebuild]
       summary: Trigger a frontend rebuild
       description: |
-        The "Rebuild site" button (ARCHITECTURE.md §7, option A). The backend marks the
-        content dirty and hands the trigger to the configured mechanism; a nightly cron
-        is the safety net. Accepted is asynchronous — check CI for completion.
+        The "Rebuild site" button (ARCHITECTURE.md §7, decision A). The backend hands the
+        trigger to the configured mechanism (CI); a nightly cron is the backstop.
+
+        Accepted is asynchronous: the footer's build date — and the CI run — confirm
+        completion. **Publishing never triggers a rebuild on its own.**
       security:
         - bearerAuth: []
       responses:
@@ -932,7 +1007,11 @@ components:
         coverPhoto:
           allOf:
             - $ref: '#/components/schemas/Photo'
-          description: Picked by the photographer; falls back to the first photo.
+          description: >-
+            Picked by the photographer. When no cover is picked — or the pick was
+            deleted — it falls back to the album's first photo; for **public** reads
+            that means the first **published** photo, so a draft is never exposed as a
+            cover.
         photoCount:
           type: integer
           description: Admin responses include drafts in the count.
@@ -952,7 +1031,10 @@ components:
           type: string
         altText:
           type: string
-          description: Accessibility text — required, not optional in the UI.
+          description: >-
+            Accessibility text — required for publishing. Uploads start with an empty
+            value, and a photo with an empty `altText` cannot be published (enforced by
+            both the admin UI and the backend).
           maxLength: 500
         sortOrder:
           type: integer

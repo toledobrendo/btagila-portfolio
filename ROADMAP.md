@@ -36,7 +36,7 @@ Each module builds to an **independent Docker image**, versioned and deployable 
 
 ## Phase 2 — Use cases, UI design & test strategy
 
-6. **Use case catalog**: actors (visitor, photographer/admin) and their scenarios — visitor: browse galleries by category, view album with lightbox, read about, reach the photographer via Facebook/Instagram; admin: log in, batch-upload photos, organize into albums/categories, reorder, publish/draft, pick cover. Write each scenario as **Given/When/Then acceptance criteria — these double directly as test cases** in the phases that follow.
+6. **Use case catalog**: actors (visitor, photographer/admin) and their scenarios — visitor: browse galleries by category, view album with lightbox, read about, reach the photographer via Facebook/Instagram; admin: log in, batch-upload photos, organize into albums/categories, reorder, publish/draft, pick cover. Write each scenario as **Given/When/Then acceptance criteria — these double directly as test cases** in the phases that follow. Deliverable: `USE-CASES.md` (draft for review).
 7. **UI design**: wireframes/mockups for the key screens (public: home, gallery index, category, album + lightbox, about, contact; admin: login, dashboard, upload, album management). Define **design tokens** up front (typography, palette, spacing). Iterate with the photographer on the mockups *before* any UI is built — taste is the product.
 8. **Test strategy**: decide per level what gets tested — unit + integration (Testcontainers with PostgreSQL) for the backend, contract tests generated from the OpenAPI spec, E2E (Playwright) for the critical admin and visitor flows, plus a11y/performance checks. Plan the CI pipeline that will run it all (admin first — Phase 6).
 
@@ -49,7 +49,7 @@ Each module builds to an **independent Docker image**, versioned and deployable 
 ## Phase 4 — API & security
 
 12. **Auth (JWT)**: admin login endpoint (bcrypt-hashed password), role claim, Spring Security stateless JWT validation on `/admin/**`; CORS restricted to the admin's local origin(s). Access token + short expiry, in-memory on the admin side. **Split the API**: `/api/**` public (read-only), `/admin/**` reachable only over a private tunnel.
-13. **CRUD endpoints**: categories, albums, photos (multipart upload, reorder, publish/draft, cover selection).
+13. **CRUD endpoints**: categories, albums, photos (multipart upload, reorder, publish/draft, cover selection). Batch uploads are **atomic** (one bad file → nothing persisted); publishing a photo requires non-empty `altText`; the admin photo list includes drafts (`GET /admin/albums/{id}/photos`).
 14. **Public read endpoints + media**: published galleries/photos only; media files served by the backend with `ETag` and `Cache-Control: immutable` on content-hashed renditions.
 15. **Probe-ready backend behavior**: Spring Boot Actuator health/readiness endpoints, graceful shutdown, all config via env vars — no hardcoded paths, media directory configurable via volume mount (works for Compose now, k8s probes later).
 16. **Tests alongside**: unit + integration tests with Testcontainers (real PostgreSQL), security tests, and contract tests against the OpenAPI spec — driven by the Phase 2 acceptance criteria.
@@ -81,7 +81,7 @@ Delivery (Phase 6) ends with a published artifact. This phase removes the human 
 26. **Apply the design system** from Phase 2 (tokens → Tailwind config, layout, typography).
 27. **Pages**: Home (hero + featured work), Gallery index → Category → Album with lightbox, About, Contact.
 28. **Contact page**: static Astro linking Facebook/Instagram (plus a `mailto:` email) — no form and no backend write, so the public API stays read-only.
-29. **Data fetching + rebuild trigger**: build-time fetching from the API. Start with a manual **"Rebuild site" button** in admin (+ nightly cron as a safety net), then add an automatic publish trigger with a debounce window — see `ARCHITECTURE.md` §7 for the options. Deploy = new frontend image tag → rolling update.
+29. **Data fetching + rebuild trigger**: build-time fetching from the API. The trigger is a manual **"Rebuild site" button** in admin, with a nightly cron as the backstop (`ARCHITECTURE.md` §7, decision A) — publishing does **not** auto-trigger a rebuild, and automatic triggering + debounce is a documented growth path, not PoC scope. The footer shows the **build date**, baked in at build time, so a landed rebuild is visible at a glance. Deploy = new frontend image tag → rolling update.
 30. **Playwright tests** for visitor flows: browse by category, open album/lightbox.
 
 ## Phase 9 — Testing & quality assurance
@@ -118,14 +118,15 @@ Delivery (Phase 6) ends with a published artifact. This phase removes the human 
 
 - **Three deployables** (backend, frontend, admin) is more moving parts than a single app — the API contract (OpenAPI) is what keeps them in sync, so define it early.
 - **Image processing in the JVM** is workable (imgscalr, TwelveMonkeys) but less polished than `sharp`; consider a tiny Node-based preprocessing step if quality/performance falls short.
-- **Build-time fetching** means the public site rebuilds when content changes — the trigger is chosen in `ARCHITECTURE.md` §7 (start manual + cron, then automate with a debounce).
+- **Build-time fetching** means the public site refreshes only on a rebuild, and the rebuild is **manual** — the admin "Rebuild site" button, with a nightly cron as the backstop (`ARCHITECTURE.md` §7, decision A). Automating the trigger (with a debounce) is a documented growth path.
 - **Image uploads** need care: file type validation, size limits, and filename sanitization.
 - **RWO media volume is a non-issue on one host** — with a single VPS (or single-node k3s) there's only one node to attach it to. It only constrains you if the app spreads to multiple nodes; then move media to object storage (R2/S3) to make the backend stateless.
 - **Images served by the backend** means photo bandwidth flows through the backend process — cache hard (immutable, content-hashed renditions) and size the box with that in mind. Hetzner's 20 TB included egress is plenty.
 - **Admin on a local machine** means the admin must reach the API over a private tunnel (Tailscale/WireGuard) — don't be tempted to expose `/admin/**` publicly. Allowlist exact CORS origins (no wildcards), keep the JWT in memory, and note batch uploads travel over home upload bandwidth.
 - **Self-hosted runner = arbitrary code on your machine** — the Phase 7 runner must only ever be attached to a private repo, and fork PRs must not be able to trigger workflows on it. A workflow running there has your filesystem, Docker socket and SSH keys in reach.
 - **Single VPS = single point of failure** — acceptable for a hobbyist portfolio, but keep the Postgres + media backups tested and offline (R2/B2), not on the same box.
-- **Rebuild storms**: publishing many albums in one session would fire many rebuilds — debounce the trigger before automating it (see `ARCHITECTURE.md` §7).
+- **Rebuild storms**: only a concern if publishing is later automated. With the manual button (decision A) there is none — a debounce is required *before* adding auto-triggering, not now (see `ARCHITECTURE.md` §7).
+- **Renaming breaks public URLs**: changing a category/album `slug` changes its path, and no redirect is served. Accepted for the PoC (no existing traffic to preserve); a real site would need a slug-history table.
 - **UI design is where AI-generated output is most visible** — budget real iteration time with the photographer in Phase 2; a generic-looking portfolio undermines the PoC.
 - **Test scope for a PoC**: keep the E2E suite focused on critical flows (upload → publish → browse); exhaustive UI testing isn't worth the cost here.
 - **K8s specifics**: keep the manifests portable so the Compose → k3s move is a redeploy, not a rewrite; each image must be pushed to a registry the target can pull from.
