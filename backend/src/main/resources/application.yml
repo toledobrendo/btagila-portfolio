@@ -55,7 +55,7 @@ springdoc:
     path: /swagger-ui.html
 
 app:
-  # Where originals and generated image variants are stored. Mounted as a volume
+  # Where originals and generated image renditions are stored. Mounted as a volume
   # in every deployment target (see ARCHITECTURE.md §1).
   media:
     storage-path: ${MEDIA_STORAGE_PATH:./data/media}

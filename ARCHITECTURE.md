@@ -2,6 +2,8 @@
 
 Review artifact. Three independently deployable modules (backend, public frontend, admin) shipped as separate Docker images. Two deployment targets: a **single small VPS** (Docker Compose now, k3s later) and a **local machine** for the admin app. Plus PostgreSQL and a media volume.
 
+Pipeline design (CI → GHCR → deploy, admin first): `CI-CD.md` / `ROADMAP.md` Phases 6–7.
+
 ---
 
 ## 1. Deployment / runtime view
@@ -79,7 +81,7 @@ graph TB
         CTRL["REST controllers<br/>public + admin endpoints<br/>(implements OpenAPI contract)"]
         ACT["Actuator<br/>liveness · readiness"]
         SECL["Spring Security<br/>auth filter · endpoint rules"]
-        SVC["Service layer<br/>Gallery · Album · Photo · Message · Auth"]
+        SVC["Service layer<br/>Gallery · Album · Photo · Auth"]
         MED["Media pipeline<br/>validation · fixed WebP renditions"]
         REPO["JPA repositories"]
         MIG["Flyway migrations"]
@@ -116,7 +118,7 @@ sequenceDiagram
     Admin->>API: POST /admin/albums/{id}/photos (multipart, JWT)
     API->>API: validate type/size, sanitize filename
     API->>Vol: store original
-    API->>API: generate fixed WebP renditions at 640/1280/2048
+    API->>API: generate fixed WebP renditions at longest side 640/1280/2048
     API->>Vol: store renditions
     API->>DB: insert photo rows (status=draft)
     API-->>Admin: 201 Created
@@ -150,7 +152,6 @@ erDiagram
     ALBUM ||--o{ PHOTO : contains
     ALBUM |o--o| PHOTO : "cover"
     APP_USER }o--o{ ALBUM : manages
-    MESSAGE
 
     CATEGORY {
         uuid id PK
@@ -175,17 +176,9 @@ erDiagram
         text title
         text alt_text
         text original_path
-        jsonb variants
+        jsonb renditions
         int sort_order
         bool published
-    }
-    MESSAGE {
-        uuid id PK
-        text name
-        text email
-        text body
-        timestamptz created_at
-        bool read
     }
     APP_USER {
         uuid id PK

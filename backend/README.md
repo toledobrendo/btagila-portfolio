@@ -1,7 +1,6 @@
 # portfolio-backend
 
-REST API for the portrait photographer portfolio — galleries, albums, photos, and
-contact messages.
+REST API for the portrait photographer portfolio — categories, albums and photos.
 
 **Spring Boot 4.1.1 · Java 21 · Maven · PostgreSQL 18 · Flyway**
 

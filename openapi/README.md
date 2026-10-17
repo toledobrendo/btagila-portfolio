@@ -49,7 +49,7 @@ is a contract change, not an implementation detail.
 - **`album` is the entity** (not "gallery"): a category contains albums, an album contains
   photos. "Gallery" is the public *index page* that lists categories. Matches the domain
   model in `../ARCHITECTURE.md` §4.
-- **Split API**: `/api/**` public (read-only plus the contact form); `/admin/**` requires a
+- **Split API**: `/api/**` public and read-only (no public write endpoints); `/admin/**` requires a
   JWT bearer token and is reachable only over a private tunnel.
 - **Pagination**: zero-based `page` + `size`, page envelope `{items, page, size,
   totalItems, totalPages}`. Offsets are fine at portfolio scale.
@@ -69,6 +69,9 @@ is a contract change, not an implementation detail.
 ## Deliberately not in the contract (yet)
 
 - About-page content — it is static Astro content, not an API resource (Phase 6).
+- Contact form / messages — the Contact page is static Astro linking Facebook and
+  Instagram (plus a `mailto:` email). There is no public write endpoint and no admin inbox
+  (a deliberate simplification: zero public write surface, nothing to rate-limit or spam-filter).
 - Admin user management — one photographer, one account. The `app_user` table exists; no
   CRUD endpoints.
 - Refresh-token revocation/denylist — rotation covers the hobbyist threat model.

@@ -87,12 +87,13 @@ Copy `.env.example` to `.env`. Values are read at **build time**.
 
 | Env var | Default | Purpose |
 |---|---|---|
-| `PUBLIC_API_BASE_URL` | `http://localhost:8080` | Backend API base URL. `PUBLIC_` because the contact form posts from the browser, so the value must be client-visible. Never put secrets here. |
+| `PUBLIC_API_BASE_URL` | `http://localhost:8080` | Backend API base URL, read at build time while fetching content. Public by design (a base URL is not a secret) — never put secrets in a `PUBLIC_` var. |
 
 ## Images
 
 Images are **not** optimised by Astro's build-time image pipeline. The backend's media
-module (Phase 3) generates a fixed set of WebP renditions (640/1280/2048 px wide) at upload
+module (Phase 3) generates a fixed set of WebP renditions (640/1280/2048 px longest side,
+so portrait and landscape get identical steps) at upload
 time and serves them from its media volume, and the frontend emits `srcset`/`sizes` pointing
 at those rendition URLs. Originals are assumed to be ≤ 2048 px on the longest side, so the
 backend never resizes on demand and never upscales.

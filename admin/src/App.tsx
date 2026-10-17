@@ -7,7 +7,7 @@ function App() {
         and talks to the backend API over a private tunnel.
       </p>
       <p className="text-sm text-neutral-500">
-        Screens — login, upload, album management, message inbox — arrive in Phase 5.
+        Screens — login, upload, album management — arrive in Phase 5.
       </p>
     </main>
   )

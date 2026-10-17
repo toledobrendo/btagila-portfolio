@@ -12,8 +12,8 @@ info:
 
     ## Split API
 
-    - **`/api/**`** — public, read-only (plus the contact form write). Serves the Astro
-      build and any client that needs published content.
+    - **`/api/**`** — public, read-only. There are deliberately **no public write
+      endpoints**. Serves the Astro build and any client that needs published content.
     - **`/admin/**`** — photographer only. Requires a JWT in the `Authorization` header
       and is reachable **only over a private tunnel** (Tailscale/WireGuard or
       `ssh -L`) — never from the public internet. `/admin/**` and `/api/**` are
@@ -73,17 +73,15 @@ tags:
     description: Public, unauthenticated reads — consumed by the Astro build.
   - name: categories
   - name: albums
-  - name: contact
   - name: admin auth
     description: "Login and token refresh. Logout is client-side: drop the tokens."
   - name: admin categories
   - name: admin albums
   - name: admin photos
-  - name: admin messages
   - name: admin rebuild
     description: Trigger a frontend rebuild after a content change (ARCHITECTURE.md §7).
   - name: media
-    description: Image files generated at upload time, served with immutable caching.
+    description: Image files pre-generated at upload time, served with immutable caching.
   - name: ops
     description: Container probes — Compose healthcheck now, Kubernetes probes later.
 
@@ -194,34 +192,6 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
-          $ref: '#/components/responses/Problem'
-
-
-## This should only be a GET. Planning to just link my facebook and instagram pages
-  /api/contact:
-    post:
-      operationId: submitContactMessage
-      tags: [public, contact]
-      summary: Send a contact message
-      description: |
-        The only public write endpoint. Messages land in the admin inbox, never in a
-        response body. Rate limited server-side.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ContactMessageRequest'
-      responses:
-        '201':
-          description: Message stored.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Message'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '429':
           $ref: '#/components/responses/Problem'
 
   /admin/auth/login:
@@ -698,85 +668,6 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /admin/messages:
-    get:
-      operationId: listAdminMessages
-      tags: [admin messages]
-      summary: List contact messages
-      description: Newest first.
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: status
-          in: query
-          required: false
-          description: Filter by read state.
-          schema:
-            type: string
-            enum: [all, read, unread]
-            default: all
-        - $ref: '#/components/parameters/Page'
-        - $ref: '#/components/parameters/Size'
-      responses:
-        '200':
-          description: A page of messages.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PageOfMessage'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/Problem'
-
-  /admin/messages/{id}/read:
-    patch:
-      operationId: setMessageRead
-      tags: [admin messages]
-      summary: Mark a message read or unread
-      description: Toggles the inbox read state.
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/MessageId'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/MessageReadRequest'
-      responses:
-        '200':
-          description: Updated.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Message'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-  /admin/messages/{id}:
-    delete:
-      operationId: deleteMessage
-      tags: [admin messages]
-      summary: Delete a message
-      description: Permanently removes the message.
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/MessageId'
-      responses:
-        '204':
-          description: Deleted.
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
   /admin/rebuild:
     post:
       operationId: triggerRebuild
@@ -810,11 +701,11 @@ paths:
       tags: [media]
       summary: Serve a pre-generated image rendition
       description: |
-        `name` is `{width}-{contentHash}.{format}` (example: `1280-a3f19c2b.webp`) — the
-        same value as `ImageVariant.name`. Because it embeds the content hash, the URL
+        `name` is `{longestSide}-{contentHash}.{format}` (example: `1280-a3f19c2b.webp`) — the
+        same value as `ImageRendition.name`. Because it embeds the content hash, the URL
         never changes for the same bytes and is safe to cache forever.
 
-        Every `url` field in `ImageVariant` points here, resolved against the API server.
+        Every `url` field in `ImageRendition` points here, resolved against the API server.
         Renditions are produced at upload time; this endpoint never resizes on demand.
       parameters:
         - name: photoId
@@ -928,13 +819,6 @@ components:
         type: string
         format: uuid
     PhotoId:
-      name: id
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
-    MessageId:
       name: id
       in: path
       required: true
@@ -1055,8 +939,8 @@ components:
 
     Photo:
       type: object
-      description: One image, plus its pre-generated renditions.
-      required: [id, albumId, title, altText, sortOrder, published, width, height, variants]
+      description: One image, plus its pre-generated renditions. The original's longest side is ≤ 2048 px.
+      required: [id, albumId, title, altText, sortOrder, published, width, height, renditions]
       properties:
         id:
           type: string
@@ -1077,27 +961,30 @@ components:
           type: boolean
         width:
           type: integer
-          description: Original width in pixels (≤ 2048).
+          description: Original width in pixels.
         height:
           type: integer
-          description: Original height in pixels (≤ 2048).
-        variants:
+          description: Original height in pixels.
+        renditions:
           type: array
           description: Pre-generated renditions, smallest first. Never empty.
           items:
-            $ref: '#/components/schemas/ImageVariant'
+            $ref: '#/components/schemas/ImageRendition'
 
-    ImageVariant:
+    ImageRendition:
       type: object
       description: >-
-        One pre-generated rendition. The set is fixed — currently WebP at 640, 1280 and
-        2048 px wide, produced at upload time and never upscaled — so no request
-        triggers image processing.
+        One pre-generated rendition. The ladder is fixed by **longest side** — 640, 1280
+        and 2048 px — rendered at upload time and capped at the original size (never
+        upscaled), so no request triggers image processing. E.g. landscape `2048×1365` →
+        `640×427`, `1280×853`, `2048×1365`; portrait `1365×2048` → `427×640`, `853×1280`,
+        `1365×2048`. A target that collapses onto a smaller one is skipped, so a photo
+        always has at least one rendition and at most three.
       required: [name, format, width, height, sizeBytes, url]
       properties:
         name:
           type: string
-          description: '{width}-{contentHash}.{format}'
+          description: '{longestSide}-{contentHash}.{format}'
           examples: ['1280-a3f19c2b.webp']
         format:
           type: string
@@ -1112,47 +999,6 @@ components:
           type: string
           format: uri
           description: Absolute URL — `/media/{photoId}/{name}` resolved against the API server.
-
-    ContactMessageRequest:
-      type: object
-      required: [name, email, body]
-      properties:
-        name:
-          type: string
-          maxLength: 100
-        email:
-          type: string
-          format: email
-          maxLength: 254
-        body:
-          type: string
-          minLength: 1
-          maxLength: 5000
-      examples:
-        - name: Anna Berg
-          email: anna@example.com
-          body: 'Hi! Do you shoot family sessions outdoors in June?'
-
-    Message:
-      type: object
-      description: A received contact message, as shown in the admin inbox.
-      required: [id, name, email, body, createdAt, read]
-      properties:
-        id:
-          type: string
-          format: uuid
-        name:
-          type: string
-        email:
-          type: string
-          format: email
-        body:
-          type: string
-        createdAt:
-          type: string
-          format: date-time
-        read:
-          type: boolean
 
     LoginRequest:
       type: object
@@ -1261,13 +1107,6 @@ components:
         published:
           type: boolean
 
-    MessageReadRequest:
-      type: object
-      required: [read]
-      properties:
-        read:
-          type: boolean
-
     ReorderRequest:
       type: object
       description: Every id in the collection, in final display order.
@@ -1341,17 +1180,6 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/Photo'
-
-    PageOfMessage:
-      allOf:
-        - $ref: '#/components/schemas/PageMeta'
-        - type: object
-          required: [items]
-          properties:
-            items:
-              type: array
-              items:
-                $ref: '#/components/schemas/Message'
 
     ProblemDetail:
       type: object

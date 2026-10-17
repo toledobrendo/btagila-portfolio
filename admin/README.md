@@ -110,5 +110,5 @@ vite.config.ts      React + Tailwind plugins
   to revisit.
 - **Auth token handling** follows `../ARCHITECTURE.md` §6: JWT in the `Authorization`
   header, held in memory with a short expiry rather than `localStorage`.
-- **Routing** (login → dashboard → upload → albums → messages) is deliberately not
+- **Routing** (login → dashboard → upload → albums) is deliberately not
   installed yet; it arrives with the screens in Phase 5.
