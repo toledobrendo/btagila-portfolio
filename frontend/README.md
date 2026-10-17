@@ -92,8 +92,10 @@ Copy `.env.example` to `.env`. Values are read at **build time**.
 ## Images
 
 Images are **not** optimised by Astro's build-time image pipeline. The backend's media
-module (Phase 3) generates the resized/WebP variants at upload time and serves them from
-its media volume, and the frontend emits `srcset`/`sizes` pointing at those variant URLs.
+module (Phase 3) generates a fixed set of WebP renditions (640/1280/2048 px wide) at upload
+time and serves them from its media volume, and the frontend emits `srcset`/`sizes` pointing
+at those rendition URLs. Originals are assumed to be ≤ 2048 px on the longest side, so the
+backend never resizes on demand and never upscales.
 
 Keeping optimisation at upload time means the work happens once per photo instead of on
 every build, and the static site needs no access to original files.

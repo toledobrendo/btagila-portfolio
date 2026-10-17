@@ -49,8 +49,11 @@ info:
 
     ## Media
 
-    Originals are processed at upload time into multiple sizes and formats; every
-    generated variant's URL embeds its content hash, so it can be cached
+    Uploads are expected to be no larger than **2048 px on the longest side** — the
+    photographer exports at that size — so there is no on-demand/dynamic resizing:
+    renditions are a **fixed** set generated at upload time, and a request never triggers
+    image processing. Renditions are capped by that ladder, so nothing is ever upscaled.
+    Every rendition's URL embeds its content hash, so it can be cached
     `Cache-Control: immutable` forever. See `GET /media/{photoId}/{name}`.
   x-cors-allowed-origins:
     - http://localhost:5173
@@ -193,6 +196,8 @@ paths:
         '500':
           $ref: '#/components/responses/Problem'
 
+
+## This should only be a GET. Planning to just link my facebook and instagram pages
   /api/contact:
     post:
       operationId: submitContactMessage
@@ -571,10 +576,12 @@ paths:
       summary: Upload photos into an album
       description: |
         Multipart batch upload — drag & drop in the admin UI. Each file is validated
-        (type, size), the original is stored, and every size/format variant is generated
-        synchronously before the response. Photos are created as **drafts**.
+        (type, size), the original is stored, and the fixed set of renditions is
+        generated synchronously before the response — never on demand. Photos are
+        created as **drafts**.
 
         Limits: **25 MB per file**, **100 MB per request** (typically 4–12 files).
+        Originals are expected to be ≤ 2048 px on the longest side.
       security:
         - bearerAuth: []
       parameters:
@@ -680,12 +687,12 @@ paths:
       operationId: deletePhoto
       tags: [admin photos]
       summary: Delete a photo
-      description: Deletes the row and every generated variant on disk.
+      description: Deletes the row and every pre-generated rendition on disk.
       security:
         - bearerAuth: []
       responses:
         '204':
-          description: Photo and its variants deleted.
+          description: Photo and its renditions deleted.
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -801,39 +808,40 @@ paths:
     get:
       operationId: getMediaFile
       tags: [media]
-      summary: Serve a generated image variant
+      summary: Serve a pre-generated image rendition
       description: |
-        `name` is `{width}-{contentHash}.{format}` (example: `480-a3f19c2b.webp`) — the
+        `name` is `{width}-{contentHash}.{format}` (example: `1280-a3f19c2b.webp`) — the
         same value as `ImageVariant.name`. Because it embeds the content hash, the URL
         never changes for the same bytes and is safe to cache forever.
 
         Every `url` field in `ImageVariant` points here, resolved against the API server.
+        Renditions are produced at upload time; this endpoint never resizes on demand.
       parameters:
         - name: photoId
           in: path
           required: true
-          description: The photo that owns this variant.
+          description: The photo that owns this rendition.
           schema:
             type: string
             format: uuid
         - name: name
           in: path
           required: true
-          description: Variant file name.
+          description: Rendition file name.
           schema:
             type: string
-            examples: ['480-a3f19c2b.webp']
+            examples: ['1280-a3f19c2b.webp']
       responses:
         '200':
           description: The image.
           headers:
             Cache-Control:
-              description: Content-hashed variants never change.
+              description: Content-hashed renditions never change.
               schema:
                 type: string
                 examples: ['public, max-age=31536000, immutable']
             ETag:
-              description: Content hash of the variant.
+              description: Content hash of the rendition.
               schema:
                 type: string
           content:
@@ -1047,7 +1055,7 @@ components:
 
     Photo:
       type: object
-      description: One image, plus every generated size/format variant.
+      description: One image, plus its pre-generated renditions.
       required: [id, albumId, title, altText, sortOrder, published, width, height, variants]
       properties:
         id:
@@ -1069,25 +1077,28 @@ components:
           type: boolean
         width:
           type: integer
-          description: Original width in pixels.
+          description: Original width in pixels (≤ 2048).
         height:
           type: integer
-          description: Original height in pixels.
+          description: Original height in pixels (≤ 2048).
         variants:
           type: array
-          description: Generated renditions, smallest first.
+          description: Pre-generated renditions, smallest first. Never empty.
           items:
             $ref: '#/components/schemas/ImageVariant'
 
     ImageVariant:
       type: object
-      description: One generated rendition of a photo.
+      description: >-
+        One pre-generated rendition. The set is fixed — currently WebP at 640, 1280 and
+        2048 px wide, produced at upload time and never upscaled — so no request
+        triggers image processing.
       required: [name, format, width, height, sizeBytes, url]
       properties:
         name:
           type: string
           description: '{width}-{contentHash}.{format}'
-          examples: ['480-a3f19c2b.webp']
+          examples: ['1280-a3f19c2b.webp']
         format:
           type: string
           enum: [webp, avif, jpeg, png]

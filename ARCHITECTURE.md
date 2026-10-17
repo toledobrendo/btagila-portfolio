@@ -27,7 +27,7 @@ graph TB
         BE["backend<br/>Spring Boot<br/>serves API + image files"]
 
         PG[("PostgreSQL<br/>volume")]
-        MEDIA[("Media volume<br/>originals + variants")]
+        MEDIA[("Media volume<br/>originals + renditions")]
         SEC["Secrets<br/>DB credentials · JWT signing key"]
     end
 
@@ -80,7 +80,7 @@ graph TB
         ACT["Actuator<br/>liveness · readiness"]
         SECL["Spring Security<br/>auth filter · endpoint rules"]
         SVC["Service layer<br/>Gallery · Album · Photo · Message · Auth"]
-        MED["Media pipeline<br/>validation · resize · WebP variants"]
+        MED["Media pipeline<br/>validation · fixed WebP renditions"]
         REPO["JPA repositories"]
         MIG["Flyway migrations"]
     end
@@ -116,8 +116,8 @@ sequenceDiagram
     Admin->>API: POST /admin/albums/{id}/photos (multipart, JWT)
     API->>API: validate type/size, sanitize filename
     API->>Vol: store original
-    API->>API: generate sizes + WebP variants
-    API->>Vol: store variants
+    API->>API: generate fixed WebP renditions at 640/1280/2048
+    API->>Vol: store renditions
     API->>DB: insert photo rows (status=draft)
     API-->>Admin: 201 Created
 
@@ -216,7 +216,7 @@ The spec is what keeps three independently built (and AI-generated) modules from
 | Decision | Choice | Consequence |
 |---|---|---|
 | Auth | **JWT** (Bearer token in `Authorization` header), stateless Spring Security | Works cleanly cross-origin — no cookie/`SameSite` problems. Token storage on the admin side needs care (below). |
-| Image serving | **Backend serves the files** | Simple. Image traffic flows through the backend pods, so set `Cache-Control: immutable` on content-hashed variants plus `ETag`, and size the pod's network/CPU for it. |
+| Image serving | **Backend serves the files** | Simple. Image traffic flows through the backend pods, so set `Cache-Control: immutable` on content-hashed renditions plus `ETag`, and size the pod's network/CPU for it. |
 | Media volume | **RWO** | ReadWriteOnce attaches to a single node at a time → constrains replica count (below). |
 | Admin location | **Photographer's local machine** | Not publicly exposed at all. Admin reaches the API over a private tunnel; CORS allowlists the local origin. |
 
@@ -247,7 +247,7 @@ On the budget path this is a non-issue — there is only *one* host, so RWO (or 
 - Backend configures CORS for the **admin origin only**, allowing `Authorization` and multipart uploads.
 - Admin sends the JWT in the `Authorization` header (not a cookie) — exactly why JWT was the right call here.
 - Token storage tradeoff: `localStorage` is simplest but XSS-exposed; **in-memory token + short expiry + refresh** is the better middle ground for an admin app.
-- Images served by the backend should carry `Cache-Control: immutable` on content-hashed variants plus `ETag`, since every image byte flows through the backend process.
+- Images served by the backend should carry `Cache-Control: immutable` on content-hashed renditions plus `ETag`, since every image byte flows through the backend process.
 
 ## 7. Content-change trigger (open — options)
 

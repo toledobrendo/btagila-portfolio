@@ -55,7 +55,7 @@ is a contract change, not an implementation detail.
   totalItems, totalPages}`. Offsets are fine at portfolio scale.
 - **Errors**: `application/problem+json` (RFC 9457) — Spring Boot's default — with an
   `errors[]` array for bean-validation failures.
-- **Media**: variants are content-hashed (`480-a3f19c2b.webp`), so their URLs are
+- **Media**: renditions are content-hashed (`1280-a3f19c2b.webp`), so their URLs are
   immutable and cacheable for a year. The URL embeds the hash, so re-encoding identical
   bytes keeps the URL stable and changed bytes get a new one.
 - **CORS**: documented under `x-cors-allowed-origins` (defaults `localhost:5173` and

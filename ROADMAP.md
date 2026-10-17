@@ -41,14 +41,14 @@ Each module builds to an **independent Docker image**, versioned and deployable 
 ## Phase 3 — Data & media layer
 
 9. **PostgreSQL schema** (via Flyway migrations): `categories`, `albums`, `photos` (title, ordering, published flag, cover), `messages` (contact), `app_user`.
-10. **Image pipeline** with `imgscalr` or TwelveMonkeys/ImageIO (or shell out to `sharp` via a small Node tool): on upload, generate multiple sizes + WebP, store originals on disk, record metadata in PostgreSQL.
+10. **Image pipeline** with `imgscalr` or TwelveMonkeys/ImageIO (or shell out to `sharp` via a small Node tool): on upload, generate a small **fixed** set of WebP renditions (640/1280/2048 px wide), store originals on disk, record metadata in PostgreSQL. Originals are assumed to be ≤ 2048 px on the longest side, so there is no on-demand resizing and no upscaling — adding a size later is a config change, not a new code path.
 11. **Local deployment of the whole stack**: a root `docker-compose.yml` brings up PostgreSQL + backend + frontend + admin, and each module also runs standalone from its own Dockerfile (so any single one can be deployed/run on the local machine). Keep config 12-factor style (env vars) from day one so the same images run locally, on the VPS, and on k3s unchanged.
 
 ## Phase 4 — API & security
 
 12. **Auth (JWT)**: admin login endpoint (bcrypt-hashed password), role claim, Spring Security stateless JWT validation on `/admin/**`; CORS restricted to the admin's local origin(s). Access token + short expiry, in-memory on the admin side. **Split the API**: `/api/**` public (read-only), `/admin/**` reachable only over a private tunnel.
 13. **CRUD endpoints**: categories, albums, photos (multipart upload, reorder, publish/draft, cover selection), contact messages.
-14. **Public read endpoints + media**: published galleries/photos only; media files served by the backend with `ETag` and `Cache-Control: immutable` on content-hashed variants.
+14. **Public read endpoints + media**: published galleries/photos only; media files served by the backend with `ETag` and `Cache-Control: immutable` on content-hashed renditions.
 15. **Probe-ready backend behavior**: Spring Boot Actuator health/readiness endpoints, graceful shutdown, all config via env vars — no hardcoded paths, media directory configurable via volume mount (works for Compose now, k8s probes later).
 16. **Tests alongside**: unit + integration tests with Testcontainers (real PostgreSQL), security tests, and contract tests against the OpenAPI spec — driven by the Phase 2 acceptance criteria.
 
@@ -103,7 +103,7 @@ Each module builds to an **independent Docker image**, versioned and deployable 
 - **Build-time fetching** means the public site rebuilds when content changes — the trigger is chosen in `ARCHITECTURE.md` §7 (start manual + cron, then automate with a debounce).
 - **Image uploads** need care: file type validation, size limits, and filename sanitization.
 - **RWO media volume is a non-issue on one host** — with a single VPS (or single-node k3s) there's only one node to attach it to. It only constrains you if the app spreads to multiple nodes; then move media to object storage (R2/S3) to make the backend stateless.
-- **Images served by the backend** means photo bandwidth flows through the backend process — cache hard (immutable, content-hashed variants) and size the box with that in mind. Hetzner's 20 TB included egress is plenty.
+- **Images served by the backend** means photo bandwidth flows through the backend process — cache hard (immutable, content-hashed renditions) and size the box with that in mind. Hetzner's 20 TB included egress is plenty.
 - **Admin on a local machine** means the admin must reach the API over a private tunnel (Tailscale/WireGuard) — don't be tempted to expose `/admin/**` publicly. Allowlist exact CORS origins (no wildcards), keep the JWT in memory, and note batch uploads travel over home upload bandwidth.
 - **Single VPS = single point of failure** — acceptable for a hobbyist portfolio, but keep the Postgres + media backups tested and offline (R2/B2), not on the same box.
 - **Rebuild storms**: publishing many albums in one session would fire many rebuilds — debounce the trigger before automating it (see `ARCHITECTURE.md` §7).

@@ -16,7 +16,7 @@ src/main/java/com/btagila/portfolio/
 ├── web/           REST controllers, request/response records, error handling
 ├── persistence/   JPA entities + Spring Data repositories (schema owned by Flyway)
 ├── security/      JWT issuing/validation, Spring Security config, admin user
-├── media/         upload validation, variant generation, storage
+├── media/         upload validation, rendition generation, storage
 └── config/        @ConfigurationProperties + shared infrastructure beans
 
 src/main/resources/
@@ -84,7 +84,7 @@ Every value has a local default and an environment-variable override:
 | `DB_USERNAME` | `portfolio` | Database user |
 | `DB_PASSWORD` | `portfolio` | Database password |
 | `SERVER_PORT` | `8080` | HTTP port |
-| `MEDIA_STORAGE_PATH` | `./data/media` | Where originals + variants are stored |
+| `MEDIA_STORAGE_PATH` | `./data/media` | Where originals + renditions are stored |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:4321` | Origins allowed to call the admin API |
 
 ## What works today
