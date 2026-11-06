@@ -1,148 +1,106 @@
 openapi: 3.1.0
-
 info:
   title: Portfolio API
-  version: 0.2.0
+  version: 0.3.0
   summary: REST API for a portrait photographer portfolio — public reads, media files, and admin operations.
   contact:
     name: Portfolio project — backend, public frontend, admin
-  description: |
-    The single source of truth for the three modules (backend, public frontend, admin).
-    See `../ARCHITECTURE.md` §5.
-
-    ## Split API
-
-    - **`/api/**`** — public, read-only. There are deliberately **no public write
-      endpoints**. Serves the Astro build and any client that needs published content.
-    - **`/admin/**`** — photographer only. Requires a JWT in the `Authorization` header
-      and is reachable **only over a private tunnel** (Tailscale/WireGuard or
-      `ssh -L`) — never from the public internet. `/admin/**` and `/api/**` are
-      deliberately separate so a failure in the public API cannot touch admin operations.
-
-    ## CORS
-
-    The admin SPA runs on the photographer's local machine, so CORS allows exact local
-    origins only — never a wildcard. Defaults (configurable via `CORS_ALLOWED_ORIGINS`):
-
-    - `http://localhost:5173` (admin dev server / preview)
-    - `http://localhost:4321` (frontend dev server)
-
-    The JWT travels in the `Authorization` header, not a cookie, which is why
-    cross-origin admin calls need no `SameSite`/credential handling.
-
-    ## Content changes
-
-    The public site is static: gallery content is fetched from `/api/**` at **build
-    time**. A published change therefore needs a frontend rebuild, triggered via
-    `POST /admin/rebuild` (see `../ARCHITECTURE.md` §7).
-
-    ## Pagination
-
-    List endpoints use zero-based `page` + `size` query parameters and return a page
-    envelope (`items` + `totalItems` + …). Collections are small (a portfolio), so
-    offsets are fine — no cursors.
-
-    ## Errors
-
-    Non-2xx responses use `application/problem+json` (RFC 9457 — Spring Boot's default),
-    with an optional `errors` array for bean-validation field failures.
-
-    ## Media
-
-    Uploads are expected to be no larger than **2048 px on the longest side** — the
-    photographer exports at that size — so there is no on-demand/dynamic resizing:
-    renditions are a **fixed** set generated at upload time, and a request never triggers
-    image processing. Renditions are capped by that ladder, so nothing is ever upscaled.
-    Every rendition's URL embeds its content hash, so it can be cached
-    `Cache-Control: immutable` forever. See `GET /media/{photoId}/{name}`.
+  description: "The single source of truth for the three modules (backend, public frontend, admin).\nSee `../ARCHITECTURE.md` §5.\n\n## Split API\n\n- **`/api/**`** — public, read-only. There are deliberately **no public write\n  endpoints**. Serves the Astro build and any client that needs published content.\n- **`/admin/**`** — photographer only. Requires a JWT in the `Authorization` header\n  and is reachable **only over a private tunnel** (Tailscale/WireGuard or\n  `ssh -L`) — never from the public internet. `/admin/**` and `/api/**` are\n  deliberately separate so a failure in the public API cannot touch admin operations.\n\n## CORS\n\nThe admin SPA runs on the photographer's local machine, so CORS allows exact local\norigins only — never a wildcard. Defaults (configurable via `CORS_ALLOWED_ORIGINS`):\n\n- `http://localhost:5173` (admin dev server / preview)\n- `http://localhost:4321` (frontend dev server)\n\nThe JWT travels in the `Authorization` header, not a cookie, which is why\n\
+    cross-origin admin calls need no `SameSite`/credential handling.\n\n## Content changes\n\nThe public site is static: gallery content is fetched from `/api/**` at **build\ntime**. A published change therefore needs a frontend rebuild, triggered via\n`POST /admin/rebuild` (see `../ARCHITECTURE.md` §7).\n\n## Pagination\n\nList endpoints use zero-based `page` + `size` query parameters and return a page\nenvelope (`items` + `totalItems` + …). Collections are small (a portfolio), so\noffsets are fine — no cursors.\n\n## Errors\n\nNon-2xx responses use `application/problem+json` (RFC 9457 — Spring Boot's default),\nwith an optional `errors` array for bean-validation field failures.\n\n## Media\n\nUploads are expected to be no larger than **2048 px on the longest side** — the\nphotographer exports at that size — so there is no on-demand/dynamic resizing:\nrenditions are a **fixed** set generated at upload time, and a request never triggers\nimage processing. Renditions are capped by that ladder,\
+    \ so nothing is ever upscaled.\nEvery rendition's URL embeds its content hash, so it can be cached\n`Cache-Control: immutable` forever. See `GET /media/{photoId}/{name}`.\n"
   x-cors-allowed-origins:
-    - http://localhost:5173
-    - http://localhost:4321
-
+  - http://localhost:5173
+  - http://localhost:4321
 servers:
-  - url: http://localhost:8080
-    description: Local development — root docker-compose.yml, or `./mvnw spring-boot:run`
-  - url: https://api.example.com
-    description: >-
-      Production VPS behind the reverse proxy (`api.*`). Placeholder — replace with the
-      real host. `/admin/**` is only reachable over the private tunnel, which resolves
-      to the backend directly rather than through this server.
-
+- url: http://localhost:8080
+  description: Local development — root docker-compose.yml, or `./mvnw spring-boot:run`
+- url: https://api.example.com
+  description: Production VPS behind the reverse proxy (`api.*`). Placeholder — replace with the real host. `/admin/**` is only reachable over the private tunnel, which resolves to the backend directly rather than through this server.
 tags:
-  - name: public
-    description: Public, unauthenticated reads — consumed by the Astro build.
-  - name: categories
-  - name: albums
-  - name: admin auth
-    description: "Login and token refresh. Logout is client-side: drop the tokens."
-  - name: admin categories
-  - name: admin albums
-  - name: admin photos
-  - name: admin rebuild
-    description: Trigger a frontend rebuild after a content change (ARCHITECTURE.md §7).
-  - name: media
-    description: Image files pre-generated at upload time, served with immutable caching.
-  - name: ops
-    description: Container probes — Compose healthcheck now, Kubernetes probes later.
-
+- name: public
+  description: Public, unauthenticated reads — consumed by the Astro build.
+- name: albums
+- name: tags
+- name: admin auth
+  description: 'Login and token refresh. Logout is client-side: drop the tokens.'
+- name: admin albums
+- name: admin tags
+  description: Tag management for albums.
+- name: admin photos
+- name: admin rebuild
+  description: Trigger a frontend rebuild after a content change (ARCHITECTURE.md §7).
+- name: media
+  description: Image files pre-generated at upload time, served with immutable caching.
+- name: ops
+  description: Container probes — Compose healthcheck now, Kubernetes probes later.
 paths:
-  /api/categories:
+  /api/tags:
     get:
-      operationId: listPublicCategories
-      tags: [public, categories]
-      summary: List published categories
-      description: Published categories only, ordered by `sortOrder`. No pagination — a portfolio has few.
+      operationId: listPublicTags
+      tags:
+      - public
+      - tags
+      summary: List published tags
+      description: Published tags only, ordered by weight DESC, name ASC. No pagination. Unpublished tags are never returned.
       responses:
         '200':
-          description: Published categories.
+          description: Published tags.
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Category'
+                  $ref: '#/components/schemas/Tag'
         '500':
           $ref: '#/components/responses/Problem'
-
-  /api/categories/{slug}:
+  /api/tags/{slug}:
     get:
-      operationId: getPublicCategory
-      tags: [public, categories]
-      summary: Get one published category
-      description: Draft categories read as 404.
+      operationId: getPublicTag
+      tags:
+      - public
+      - tags
+      summary: Get one published tag
+      description: Draft/unpublished tags read as 404.
       parameters:
-        - $ref: '#/components/parameters/CategorySlug'
+      - name: slug
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
       responses:
         '200':
-          description: The category.
+          description: The tag.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Category'
+                $ref: '#/components/schemas/Tag'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/Problem'
-
   /api/albums:
     get:
       operationId: listPublicAlbums
-      tags: [public, albums]
+      tags:
+      - public
+      - albums
       summary: List published albums
-      description: |
-        Published albums only. Each item embeds its category and cover photo so the
-        gallery index renders from one request; when no cover is picked, the cover
-        falls back to the first **published** photo.
+      description: Published albums only. Each item includes its tags and cover photo. Albums must have at least one tag. When no cover is picked, the cover falls back to the first **published** photo.
       parameters:
-        - name: category
-          in: query
-          required: false
-          description: Filter by category slug.
-          schema:
+      - name: tag
+        in: query
+        required: false
+        description: Filter by tag slug(s). Multiple values use AND semantics (album must have every specified tag).
+        schema:
+          type: array
+          items:
             type: string
-            examples: [family]
-        - $ref: '#/components/parameters/Page'
-        - $ref: '#/components/parameters/Size'
+            pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+        style: form
+        explode: true
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/Size'
       responses:
         '200':
           description: A page of published albums.
@@ -152,15 +110,16 @@ paths:
                 $ref: '#/components/schemas/PageOfAlbum'
         '500':
           $ref: '#/components/responses/Problem'
-
   /api/albums/{slug}:
     get:
       operationId: getPublicAlbum
-      tags: [public, albums]
+      tags:
+      - public
+      - albums
       summary: Get one published album
       description: Draft albums are indistinguishable from missing ones (404).
       parameters:
-        - $ref: '#/components/parameters/AlbumSlug'
+      - $ref: '#/components/parameters/AlbumSlug'
       responses:
         '200':
           description: The album.
@@ -172,17 +131,18 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/Problem'
-
   /api/albums/{slug}/photos:
     get:
       operationId: listPublicAlbumPhotos
-      tags: [public, albums]
+      tags:
+      - public
+      - albums
       summary: List published photos in an album
       description: Published photos only, in display order.
       parameters:
-        - $ref: '#/components/parameters/AlbumSlug'
-        - $ref: '#/components/parameters/Page'
-        - $ref: '#/components/parameters/Size'
+      - $ref: '#/components/parameters/AlbumSlug'
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/Size'
       responses:
         '200':
           description: A page of photos.
@@ -194,16 +154,19 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/Problem'
-
   /admin/auth/login:
     post:
       operationId: login
-      tags: [admin auth]
+      tags:
+      - admin auth
       summary: Exchange credentials for tokens
-      description: |
-        Returns a short-lived access token and a longer-lived refresh token. The admin
+      description: 'Returns a short-lived access token and a longer-lived refresh token. The admin
+
         SPA keeps both **in memory** — never `localStorage` (XSS) — and refreshes before
+
         expiry.
+
+        '
       requestBody:
         required: true
         content:
@@ -221,11 +184,11 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
-
   /admin/auth/refresh:
     post:
       operationId: refreshToken
-      tags: [admin auth]
+      tags:
+      - admin auth
       summary: Exchange a refresh token for a new token pair
       description: Rotates the refresh token — the old one is invalidated.
       requestBody:
@@ -243,104 +206,136 @@ paths:
                 $ref: '#/components/schemas/TokenResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
-
-  /admin/categories:
+  /admin/tags:
     get:
-      operationId: listAdminCategories
-      tags: [admin categories]
-      summary: List all categories
-      description: Includes drafts and an `albumCount`. Requires auth.
+      operationId: listAdminTags
+      tags:
+      - admin tags
+      summary: List tags
+      description: All tags (including unpublished), ordered by weight DESC, name ASC. Unpublished tags are not assignable from pickers/search.
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       responses:
         '200':
-          description: All categories, ordered by `sortOrder`.
+          description: Tags.
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Category'
+                  $ref: '#/components/schemas/Tag'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/Problem'
     post:
-      operationId: createCategory
-      tags: [admin categories]
-      summary: Create a category
-      description: The slug is derived from `name` when omitted; new categories start unpublished unless `published` is set.
+      operationId: createTag
+      tags:
+      - admin tags
+      summary: Create a tag (inline or from tags page)
+      description: Can be called from the album form for inline creation. Only published/assignable tags may be attached.
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CategoryRequest'
+              $ref: '#/components/schemas/TagRequest'
       responses:
         '201':
           description: Created.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Category'
+                $ref: '#/components/schemas/Tag'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '409':
-          description: A category with this slug already exists.
+          description: Slug already exists.
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
-
-  /admin/categories/order:
+        '500':
+          $ref: '#/components/responses/Problem'
+  /admin/tags/order:
     put:
-      operationId: reorderCategories
-      tags: [admin categories]
-      summary: Set category order
-      description: The body carries every category id, in display order.
+      operationId: reorderTags
+      tags:
+      - admin tags
+      summary: Reorder tags by weight
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ReorderRequest'
+              $ref: '#/components/schemas/TagOrderRequest'
       responses:
-        '204':
-          description: Order saved.
-        '400':
-          $ref: '#/components/responses/BadRequest'
+        '200':
+          description: Ordered.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Tag'
         '401':
           $ref: '#/components/responses/Unauthorized'
-
-  /admin/categories/{id}:
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/Problem'
+  /admin/tags/{id}:
     parameters:
-      - $ref: '#/components/parameters/CategoryId'
-    put:
-      operationId: updateCategory
-      tags: [admin categories]
-      summary: Replace a category
-      description: Replaces name, slug, sort order, and published flag.
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      operationId: getAdminTag
+      tags:
+      - admin tags
+      summary: Get a tag
       security:
-        - bearerAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          description: The tag.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: updateTag
+      tags:
+      - admin tags
+      summary: Replace a tag
+      security:
+      - bearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CategoryRequest'
+              $ref: '#/components/schemas/TagRequest'
       responses:
         '200':
           description: Updated.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Category'
+                $ref: '#/components/schemas/Tag'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -348,18 +343,19 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: Slug collides with a different category.
+          description: Slug collision.
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
     delete:
-      operationId: deleteCategory
-      tags: [admin categories]
-      summary: Delete a category
-      description: Refused while the category still contains albums.
+      operationId: deleteTag
+      tags:
+      - admin tags
+      summary: Delete a tag
+      description: Refused if the tag is still attached to any album.
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       responses:
         '204':
           description: Deleted.
@@ -368,25 +364,27 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: The category still contains albums — move or delete them first.
+          description: Tag still attached to albums.
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
-
-  /admin/categories/{id}/publish:
+  /admin/tags/{id}/publish:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
     patch:
-      operationId: setCategoryPublished
-      tags: [admin categories]
-      summary: Publish or unpublish a category
-      description: |
-        Symmetric with `PATCH /admin/albums/{id}/publish`, so the UI toggles visibility
-        without a full replacement. Also marks content "dirty" for the rebuild trigger
-        (ARCHITECTURE.md §7).
+      operationId: setTagPublished
+      tags:
+      - admin tags
+      summary: Publish or unpublish a tag
+      description: Unpublishing hides the tag from public lists and from admin pickers/search; it does not affect album visibility.
       security:
-        - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/CategoryId'
+      - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -395,36 +393,40 @@ paths:
               $ref: '#/components/schemas/PublishRequest'
       responses:
         '200':
-          description: Updated category.
+          description: Updated.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Category'
-        '400':
-          $ref: '#/components/responses/BadRequest'
+                $ref: '#/components/schemas/Tag'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
-
+        '500':
+          $ref: '#/components/responses/Problem'
   /admin/albums:
     get:
       operationId: listAdminAlbums
-      tags: [admin albums]
+      tags:
+      - admin albums
       summary: List albums
       description: Draft and published albums; each embeds its cover photo.
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - name: category
-          in: query
-          required: false
-          description: Filter by category id.
-          schema:
+      - name: tag
+        in: query
+        required: false
+        description: Filter by tag id(s). Multiple values use AND semantics (album must have every specified tag).
+        schema:
+          type: array
+          items:
             type: string
             format: uuid
-        - $ref: '#/components/parameters/Page'
-        - $ref: '#/components/parameters/Size'
+        style: form
+        explode: true
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/Size'
       responses:
         '200':
           description: A page of albums.
@@ -438,11 +440,12 @@ paths:
           $ref: '#/components/responses/Problem'
     post:
       operationId: createAlbum
-      tags: [admin albums]
+      tags:
+      - admin albums
       summary: Create an album
       description: New albums start as drafts unless `published` is set.
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -461,22 +464,22 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '409':
-          description: A album with this slug already exists in the category.
+          description: A album with this slug already exists.
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
-
   /admin/albums/{id}:
     parameters:
-      - $ref: '#/components/parameters/AlbumId'
+    - $ref: '#/components/parameters/AlbumId'
     get:
       operationId: getAdminAlbum
-      tags: [admin albums]
+      tags:
+      - admin albums
       summary: Get an album
       description: Includes draft albums and a `photoCount`; photos are fetched separately.
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       responses:
         '200':
           description: The album.
@@ -490,11 +493,12 @@ paths:
           $ref: '#/components/responses/NotFound'
     put:
       operationId: updateAlbum
-      tags: [admin albums]
+      tags:
+      - admin albums
       summary: Replace an album
-      description: Title, description, category, order, published flag, and cover photo.
+      description: Title, description, tags, order, published flag, and cover photo.
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -515,18 +519,19 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: Slug collides with a different album in the same category.
+          description: Slug collides with a different album.
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
     delete:
       operationId: deleteAlbum
-      tags: [admin albums]
+      tags:
+      - admin albums
       summary: Delete an album
       description: Refused while the album still contains photos.
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       responses:
         '204':
           description: Album deleted (cover reference cleared).
@@ -540,19 +545,21 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
-
   /admin/albums/{id}/publish:
     patch:
       operationId: setAlbumPublished
-      tags: [admin albums]
+      tags:
+      - admin albums
       summary: Publish or unpublish an album
-      description: |
-        The publish step that makes the album visible on `/api/**`. Also marks the
+      description: 'The publish step that makes the album visible on `/api/**`. Also marks the
+
         content "dirty" for the rebuild trigger (ARCHITECTURE.md §7).
+
+        '
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/AlbumId'
+      - $ref: '#/components/parameters/AlbumId'
       requestBody:
         required: true
         content:
@@ -572,23 +579,26 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
-
   /admin/albums/{id}/photos:
     parameters:
-      - $ref: '#/components/parameters/AlbumId'
+    - $ref: '#/components/parameters/AlbumId'
     get:
       operationId: listAdminAlbumPhotos
-      tags: [admin photos]
+      tags:
+      - admin photos
       summary: List an album's photos, drafts included
-      description: |
-        Every photo in the album, drafts included, in display order — what the admin
+      description: 'Every photo in the album, drafts included, in display order — what the admin
+
         album screen renders. Use `GET /api/albums/{slug}/photos` for published photos
+
         only.
+
+        '
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/Page'
-        - $ref: '#/components/parameters/Size'
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/Size'
       responses:
         '200':
           description: A page of photos, drafts included.
@@ -602,28 +612,38 @@ paths:
           $ref: '#/components/responses/NotFound'
     post:
       operationId: uploadPhotos
-      tags: [admin photos]
+      tags:
+      - admin photos
       summary: Upload photos into an album
-      description: |
-        Multipart batch upload — drag & drop in the admin UI. Each file is validated
+      description: 'Multipart batch upload — drag & drop in the admin UI. Each file is validated
+
         (type, size), the original is stored, and the fixed set of renditions is
+
         generated synchronously before the response — never on demand. Photos are
+
         created as **drafts**.
 
+
         **Atomic**: if any file in the batch fails validation, nothing is persisted
+
         and the whole request is rejected — an album is never half-imported.
 
+
         Limits: **25 MB per file**, **100 MB per request** (typically 4–12 files).
+
         Originals are expected to be ≤ 2048 px on the longest side.
+
+        '
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       requestBody:
         required: true
         content:
           multipart/form-data:
             schema:
               type: object
-              required: [files]
+              required:
+              - files
               properties:
                 files:
                   type: array
@@ -658,17 +678,17 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
-
   /admin/albums/{id}/photos/order:
     put:
       operationId: reorderPhotos
-      tags: [admin photos]
+      tags:
+      - admin photos
       summary: Set photo order within an album
       description: The body carries every photo id in the album, in display order.
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/AlbumId'
+      - $ref: '#/components/parameters/AlbumId'
       requestBody:
         required: true
         content:
@@ -684,22 +704,26 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
-
   /admin/photos/{id}:
     parameters:
-      - $ref: '#/components/parameters/PhotoId'
+    - $ref: '#/components/parameters/PhotoId'
     patch:
       operationId: updatePhoto
-      tags: [admin photos]
+      tags:
+      - admin photos
       summary: Update a photo's metadata
-      description: |
-        Partial update — title, alt text, sort order, published flag.
+      description: 'Partial update — title, alt text, sort order, published flag.
+
 
         Setting `published: true` on a photo whose `altText` is empty is **rejected**
+
         (`400`): accessibility text is a precondition for publication, enforced here as
+
         well as in the admin UI.
+
+        '
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -714,8 +738,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Photo'
         '400':
-          description: >-
-            Invalid body, or `published: true` with an empty `altText`.
+          description: 'Invalid body, or `published: true` with an empty `altText`.'
           content:
             application/problem+json:
               schema:
@@ -726,13 +749,12 @@ paths:
           $ref: '#/components/responses/NotFound'
     delete:
       operationId: deletePhoto
-      tags: [admin photos]
+      tags:
+      - admin photos
       summary: Delete a photo
-      description: >-
-        Deletes the row and every pre-generated rendition on disk. If the photo was an
-        album's cover, the album's cover reference is cleared — the album is not deleted.
+      description: Deletes the row and every pre-generated rendition on disk. If the photo was an album's cover, the album's cover reference is cleared — the album is not deleted.
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       responses:
         '204':
           description: Photo and its renditions deleted.
@@ -740,20 +762,24 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
-
   /admin/rebuild:
     post:
       operationId: triggerRebuild
-      tags: [admin rebuild]
+      tags:
+      - admin rebuild
       summary: Trigger a frontend rebuild
-      description: |
-        The "Rebuild site" button (ARCHITECTURE.md §7, decision A). The backend hands the
+      description: 'The "Rebuild site" button (ARCHITECTURE.md §7, decision A). The backend hands the
+
         trigger to the configured mechanism (CI); a nightly cron is the backstop.
 
-        Accepted is asynchronous: the footer's build date — and the CI run — confirm
+
+        Accepted is asynchronous: the footer''s build date — and the CI run — confirm
+
         completion. **Publishing never triggers a rebuild on its own.**
+
+        '
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       responses:
         '202':
           description: Rebuild requested.
@@ -769,34 +795,40 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
-
   /media/{photoId}/{name}:
     get:
       operationId: getMediaFile
-      tags: [media]
+      tags:
+      - media
       summary: Serve a pre-generated image rendition
-      description: |
-        `name` is `{longestSide}-{contentHash}.{format}` (example: `1280-a3f19c2b.webp`) — the
+      description: '`name` is `{longestSide}-{contentHash}.{format}` (example: `1280-a3f19c2b.webp`) — the
+
         same value as `ImageRendition.name`. Because it embeds the content hash, the URL
+
         never changes for the same bytes and is safe to cache forever.
 
+
         Every `url` field in `ImageRendition` points here, resolved against the API server.
+
         Renditions are produced at upload time; this endpoint never resizes on demand.
+
+        '
       parameters:
-        - name: photoId
-          in: path
-          required: true
-          description: The photo that owns this rendition.
-          schema:
-            type: string
-            format: uuid
-        - name: name
-          in: path
-          required: true
-          description: Rendition file name.
-          schema:
-            type: string
-            examples: ['1280-a3f19c2b.webp']
+      - name: photoId
+        in: path
+        required: true
+        description: The photo that owns this rendition.
+        schema:
+          type: string
+          format: uuid
+      - name: name
+        in: path
+        required: true
+        description: Rendition file name.
+        schema:
+          type: string
+          examples:
+          - 1280-a3f19c2b.webp
       responses:
         '200':
           description: The image.
@@ -805,7 +837,8 @@ paths:
               description: Content-hashed renditions never change.
               schema:
                 type: string
-                examples: ['public, max-age=31536000, immutable']
+                examples:
+                - public, max-age=31536000, immutable
             ETag:
               description: Content hash of the rendition.
               schema:
@@ -825,15 +858,17 @@ paths:
                 format: binary
         '404':
           $ref: '#/components/responses/NotFound'
-
   /actuator/health:
     get:
       operationId: health
-      tags: [ops]
+      tags:
+      - ops
       summary: Health probe
-      description: |
-        Container probe target — Compose healthcheck now, Kubernetes liveness/readiness
+      description: 'Container probe target — Compose healthcheck now, Kubernetes liveness/readiness
+
         probes later. Returns 200 when UP, 503 when DOWN.
+
+        '
       responses:
         '200':
           description: Application is up.
@@ -847,18 +882,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Health'
-
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: |
-        Short-lived JWT from `POST /admin/auth/login`, sent as
+      description: 'Short-lived JWT from `POST /admin/auth/login`, sent as
+
         `Authorization: Bearer <token>`. Applies to `/admin/**` only; refresh before it
+
         expires.
 
+        '
   parameters:
     Page:
       name: page
@@ -879,13 +915,6 @@ components:
         minimum: 1
         maximum: 100
         default: 24
-    CategoryId:
-      name: id
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
     AlbumId:
       name: id
       in: path
@@ -900,21 +929,14 @@ components:
       schema:
         type: string
         format: uuid
-    CategorySlug:
-      name: slug
-      in: path
-      required: true
-      schema:
-        type: string
-        examples: [family]
     AlbumSlug:
       name: slug
       in: path
       required: true
       schema:
         type: string
-        examples: [spring-studio-session]
-
+        examples:
+        - spring-studio-session
   responses:
     BadRequest:
       description: Validation failed or the request body was malformed.
@@ -940,62 +962,30 @@ components:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/ProblemDetail'
-
   schemas:
-    Category:
-      type: object
-      description: A top-level grouping — the gallery index page lists these.
-      required: [id, name, slug, sortOrder, published]
-      properties:
-        id:
-          type: string
-          format: uuid
-        name:
-          type: string
-          examples: ['Family']
-        slug:
-          type: string
-          description: URL-safe identifier used in public paths.
-          pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'
-          examples: [family]
-        sortOrder:
-          type: integer
-          minimum: 0
-        published:
-          type: boolean
-        albumCount:
-          type: integer
-          description: Admin responses only.
-      examples:
-        - id: 3f6d0a2e-8c1b-4f5a-9d3e-2b7c8e1a4f60
-          name: Family
-          slug: family
-          sortOrder: 0
-          published: true
-          albumCount: 3
-
     Album:
       type: object
-      description: A set of photos — what a visitor opens from the gallery index.
-      required: [id, categoryId, title, slug, sortOrder, published]
+      description: A set of photos — what a visitor opens from the gallery. Albums must have at least one tag.
+      required:
+      - id
+      - title
+      - slug
+      - sortOrder
+      - published
+      - tags
       properties:
         id:
           type: string
           format: uuid
-        categoryId:
-          type: string
-          format: uuid
-        category:
-          allOf:
-            - $ref: '#/components/schemas/Category'
-          description: Embedded so the gallery index renders from one request.
         title:
           type: string
-          examples: ['Spring studio session']
+          examples:
+          - Spring studio session
         slug:
           type: string
-          pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'
-          examples: [spring-studio-session]
+          pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+          examples:
+          - spring-studio-session
         description:
           type: string
           maxLength: 2000
@@ -1006,20 +996,30 @@ components:
           type: boolean
         coverPhoto:
           allOf:
-            - $ref: '#/components/schemas/Photo'
-          description: >-
-            Picked by the photographer. When no cover is picked — or the pick was
-            deleted — it falls back to the album's first photo; for **public** reads
-            that means the first **published** photo, so a draft is never exposed as a
-            cover.
+          - $ref: '#/components/schemas/Photo'
+          description: Picked by the photographer. When no cover is picked — or the pick was deleted — it falls back to the album's first photo; for **public** reads that means the first **published** photo, so a draft is never exposed as a cover.
         photoCount:
           type: integer
           description: Admin responses include drafts in the count.
-
+        tags:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/Tag'
+          description: Tags attached to the album. Unpublished tags are hidden on public album views; at least one tag must remain attached. Album visibility is independent of tag visibility.
     Photo:
       type: object
       description: One image, plus its pre-generated renditions. The original's longest side is ≤ 2048 px.
-      required: [id, albumId, title, altText, sortOrder, published, width, height, renditions]
+      required:
+      - id
+      - albumId
+      - title
+      - altText
+      - sortOrder
+      - published
+      - width
+      - height
+      - renditions
       properties:
         id:
           type: string
@@ -1031,10 +1031,7 @@ components:
           type: string
         altText:
           type: string
-          description: >-
-            Accessibility text — required for publishing. Uploads start with an empty
-            value, and a photo with an empty `altText` cannot be published (enforced by
-            both the admin UI and the backend).
+          description: Accessibility text — required for publishing. Uploads start with an empty value, and a photo with an empty `altText` cannot be published (enforced by both the admin UI and the backend).
           maxLength: 500
         sortOrder:
           type: integer
@@ -1052,25 +1049,29 @@ components:
           description: Pre-generated renditions, smallest first. Never empty.
           items:
             $ref: '#/components/schemas/ImageRendition'
-
     ImageRendition:
       type: object
-      description: >-
-        One pre-generated rendition. The ladder is fixed by **longest side** — 640, 1280
-        and 2048 px — rendered at upload time and capped at the original size (never
-        upscaled), so no request triggers image processing. E.g. landscape `2048×1365` →
-        `640×427`, `1280×853`, `2048×1365`; portrait `1365×2048` → `427×640`, `853×1280`,
-        `1365×2048`. A target that collapses onto a smaller one is skipped, so a photo
-        always has at least one rendition and at most three.
-      required: [name, format, width, height, sizeBytes, url]
+      description: One pre-generated rendition. The ladder is fixed by **longest side** — 640, 1280 and 2048 px — rendered at upload time and capped at the original size (never upscaled), so no request triggers image processing. E.g. landscape `2048×1365` → `640×427`, `1280×853`, `2048×1365`; portrait `1365×2048` → `427×640`, `853×1280`, `1365×2048`. A target that collapses onto a smaller one is skipped, so a photo always has at least one rendition and at most three.
+      required:
+      - name
+      - format
+      - width
+      - height
+      - sizeBytes
+      - url
       properties:
         name:
           type: string
           description: '{longestSide}-{contentHash}.{format}'
-          examples: ['1280-a3f19c2b.webp']
+          examples:
+          - 1280-a3f19c2b.webp
         format:
           type: string
-          enum: [webp, avif, jpeg, png]
+          enum:
+          - webp
+          - avif
+          - jpeg
+          - png
         width:
           type: integer
         height:
@@ -1081,10 +1082,11 @@ components:
           type: string
           format: uri
           description: Absolute URL — `/media/{photoId}/{name}` resolved against the API server.
-
     LoginRequest:
       type: object
-      required: [email, password]
+      required:
+      - email
+      - password
       properties:
         email:
           type: string
@@ -1093,19 +1095,22 @@ components:
           type: string
           format: password
       examples:
-        - email: photographer@example.com
-          password: '••••••••'
-
+      - email: photographer@example.com
+        password: ••••••••
     RefreshRequest:
       type: object
-      required: [refreshToken]
+      required:
+      - refreshToken
       properties:
         refreshToken:
           type: string
-
     TokenResponse:
       type: object
-      required: [accessToken, refreshToken, tokenType, expiresInSeconds]
+      required:
+      - accessToken
+      - refreshToken
+      - tokenType
+      - expiresInSeconds
       properties:
         accessToken:
           type: string
@@ -1117,29 +1122,11 @@ components:
         expiresInSeconds:
           type: integer
           description: Access-token lifetime — short by design.
-
-    CategoryRequest:
-      type: object
-      required: [name]
-      properties:
-        name:
-          type: string
-          maxLength: 100
-        slug:
-          type: string
-          description: Derived from `name` when omitted.
-          pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'
-        sortOrder:
-          type: integer
-          minimum: 0
-          default: 0
-        published:
-          type: boolean
-          default: false
-
     AlbumRequest:
       type: object
-      required: [title, categoryId]
+      required:
+      - title
+      - tagIds
       properties:
         title:
           type: string
@@ -1147,13 +1134,10 @@ components:
         slug:
           type: string
           description: Derived from `title` when omitted.
-          pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'
+          pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
         description:
           type: string
           maxLength: 2000
-        categoryId:
-          type: string
-          format: uuid
         sortOrder:
           type: integer
           minimum: 0
@@ -1162,10 +1146,18 @@ components:
           type: boolean
           default: false
         coverPhotoId:
-          type: [string, 'null']
+          type:
+          - string
+          - 'null'
           format: uuid
           description: Must be a photo in this album; null clears the pick.
-
+        tagIds:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            format: uuid
+          description: At least one tag must be attached. Only published/assignable tags may be attached; unpublished tags are not assignable or searchable.
     PhotoRequest:
       type: object
       description: Partial update — send only the fields to change.
@@ -1181,18 +1173,18 @@ components:
           minimum: 0
         published:
           type: boolean
-
     PublishRequest:
       type: object
-      required: [published]
+      required:
+      - published
       properties:
         published:
           type: boolean
-
     ReorderRequest:
       type: object
       description: Every id in the collection, in final display order.
-      required: [orderedIds]
+      required:
+      - orderedIds
       properties:
         orderedIds:
           type: array
@@ -1200,36 +1192,41 @@ components:
           items:
             type: string
             format: uuid
-
     PhotoBatch:
       type: object
       description: Result of a multipart upload.
-      required: [items]
+      required:
+      - items
       properties:
         items:
           type: array
           items:
             $ref: '#/components/schemas/Photo'
-
     RebuildStatus:
       type: object
-      required: [status]
+      required:
+      - status
       properties:
         status:
           type: string
-          enum: [accepted]
-
+          enum:
+          - accepted
     Health:
       type: object
-      required: [status]
+      required:
+      - status
       properties:
         status:
           type: string
-          examples: [UP]
-
+          examples:
+          - UP
     PageMeta:
       type: object
-      required: [page, size, totalItems, totalPages]
+      required:
+      - page
+      - size
+      - totalItems
+      - totalPages
       properties:
         page:
           type: integer
@@ -1240,33 +1237,35 @@ components:
           type: integer
         totalPages:
           type: integer
-
     PageOfAlbum:
       allOf:
-        - $ref: '#/components/schemas/PageMeta'
-        - type: object
-          required: [items]
-          properties:
+      - $ref: '#/components/schemas/PageMeta'
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
             items:
-              type: array
-              items:
-                $ref: '#/components/schemas/Album'
-
+              $ref: '#/components/schemas/Album'
     PageOfPhoto:
       allOf:
-        - $ref: '#/components/schemas/PageMeta'
-        - type: object
-          required: [items]
-          properties:
+      - $ref: '#/components/schemas/PageMeta'
+      - type: object
+        required:
+        - items
+        properties:
+          items:
+            type: array
             items:
-              type: array
-              items:
-                $ref: '#/components/schemas/Photo'
-
+              $ref: '#/components/schemas/Photo'
     ProblemDetail:
       type: object
       description: RFC 9457 problem details — Spring Boot's default error body.
-      required: [type, title, status]
+      required:
+      - type
+      - title
+      - status
       properties:
         type:
           type: string
@@ -1285,14 +1284,90 @@ components:
           description: Present on 400 when bean validation failed.
           items:
             $ref: '#/components/schemas/FieldError'
-
     FieldError:
       type: object
-      required: [field, message]
+      required:
+      - field
+      - message
       properties:
         field:
           type: string
-          examples: [body]
+          examples:
+          - body
         message:
           type: string
-          examples: ['must not be blank']
+          examples:
+          - must not be blank
+    Tag:
+      type: object
+      description: A reusable label attached to albums (M:N). Unpublished tags are hidden from public lists and from admin pickers/search, but do not affect album visibility.
+      required:
+      - id
+      - name
+      - slug
+      - weight
+      - published
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          examples:
+          - Wedding
+        slug:
+          type: string
+          pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+          examples:
+          - wedding
+        weight:
+          type: integer
+          description: Higher weight sorts first. Tiebreaker by name.
+          default: 0
+        published:
+          type: boolean
+        albumCount:
+          type: integer
+          description: Admin responses only.
+      examples:
+      - id: 3f6d0a2e-8c1b-4f5a-9d3e-2b7c8e1a4f60
+        name: Wedding
+        slug: wedding
+        weight: 10
+        published: true
+        albumCount: 2
+    TagRequest:
+      type: object
+      required:
+      - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+        slug:
+          type: string
+          pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+        weight:
+          type: integer
+          default: 0
+        published:
+          type: boolean
+          default: false
+    TagOrderRequest:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required:
+            - id
+            - weight
+            properties:
+              id:
+                type: string
+                format: uuid
+              weight:
+                type: integer

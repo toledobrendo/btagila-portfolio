@@ -8,7 +8,8 @@ unchanged. Each criterion has a stable id (`AC-ADM-05.2`) that test names and co
 reference, which is what keeps the document and the tests from drifting apart.
 
 Related: `ROADMAP.md` (sequencing) · `ARCHITECTURE.md` (design) · `openapi/openapi.yaml`
-(the contract these criteria describe) · `CI-CD.md` (where they run).
+(the contract these criteria describe) · `DESIGN.md` (the screens these criteria are about) ·
+`CI-CD.md` (where they run).
 
 ---
 

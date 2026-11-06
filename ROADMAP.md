@@ -6,7 +6,7 @@ A portrait photographer portfolio website, also serving as a proof of concept fo
 - **Backend:** Spring Boot + PostgreSQL (REST API, media storage, auth)
 - **Public frontend:** Astro (static output, fetches gallery data from the API)
 - **Admin UI:** Separate module/app, runs on the photographer's **local machine** (never publicly exposed)
-- **Pages:** Home + Gallery + About + Contact, galleries by category
+- **Pages:** Home + Gallery + About + Contact, galleries by tag
 - **Deployment:** Each module is its own Docker image. **Docker Compose on a single small VPS first, k3s later** (same images); every module also deployable locally.
 - **CI/CD:** GitHub Actions + GHCR (GitHub Container Registry). The **admin** module gets the first pipeline as a deliberate learning exercise — Phase 6 is continuous **delivery** (tag → image in GHCR → explicit pull), Phase 7 is continuous **deployment** (a self-hosted runner on the local machine). Backend and frontend reuse the same shape later. Design in `CI-CD.md`.
 
@@ -36,8 +36,8 @@ Each module builds to an **independent Docker image**, versioned and deployable 
 
 ## Phase 2 — Use cases, UI design & test strategy
 
-6. **Use case catalog**: actors (visitor, photographer/admin) and their scenarios — visitor: browse galleries by category, view album with lightbox, read about, reach the photographer via Facebook/Instagram; admin: log in, batch-upload photos, organize into albums/categories, reorder, publish/draft, pick cover. Write each scenario as **Given/When/Then acceptance criteria — these double directly as test cases** in the phases that follow. Deliverable: `USE-CASES.md` (draft for review).
-7. **UI design**: wireframes/mockups for the key screens (public: home, gallery index, category, album + lightbox, about, contact; admin: login, dashboard, upload, album management). Define **design tokens** up front (typography, palette, spacing). Iterate with the photographer on the mockups *before* any UI is built — taste is the product.
+6. **Use case catalog**: actors (visitor, photographer/admin) and their scenarios — visitor: browse galleries by tag, view album with lightbox, read about, reach the photographer via Facebook/Instagram; admin: log in, batch-upload photos, organize into albums/tags, reorder, publish/draft, pick cover. Write each scenario as **Given/When/Then acceptance criteria — these double directly as test cases** in the phases that follow. Deliverable: `USE-CASES.md` (draft for review).
+7. **UI design**: design the key screens in Figma and define **design tokens** up front (typography, palette, spacing). See **`DESIGN.md`** — the brief: screen inventory, navigation map, frame sizes (Tailwind-aligned breakpoints), states to cover, the token handoff, and the decisions to settle first. Iterate with the photographer on the mockups *before* any UI is built — taste is the product.
 8. **Test strategy**: decide per level what gets tested — unit + integration (Testcontainers with PostgreSQL) for the backend, contract tests generated from the OpenAPI spec, E2E (Playwright) for the critical admin and visitor flows, plus a11y/performance checks. Plan the CI pipeline that will run it all (admin first — Phase 6).
 
 ## Phase 3 — Data & media layer
@@ -57,7 +57,7 @@ Each module builds to an **independent Docker image**, versioned and deployable 
 ## Phase 5 — Admin UI (separate module)
 
 17. **Login screen** + token/session storage.
-18. **Screens**: dashboard, drag-and-drop upload, category & album management, photo reorder, publish/draft toggle, cover picker.
+18. **Screens**: dashboard, drag-and-drop upload, tag & album management, photo reorder, publish/draft toggle, cover picker.
 19. **Playwright tests** for the critical admin flows: login, upload, organize, publish.
 
 ## Phase 6 — CI & continuous delivery for admin (practice)
@@ -82,7 +82,7 @@ Delivery (Phase 6) ends with a published artifact. This phase removes the human 
 27. **Pages**: Home (hero + featured work), Gallery index → Category → Album with lightbox, About, Contact.
 28. **Contact page**: static Astro linking Facebook/Instagram (plus a `mailto:` email) — no form and no backend write, so the public API stays read-only.
 29. **Data fetching + rebuild trigger**: build-time fetching from the API. The trigger is a manual **"Rebuild site" button** in admin, with a nightly cron as the backstop (`ARCHITECTURE.md` §7, decision A) — publishing does **not** auto-trigger a rebuild, and automatic triggering + debounce is a documented growth path, not PoC scope. The footer shows the **build date**, baked in at build time, so a landed rebuild is visible at a glance. Deploy = new frontend image tag → rolling update.
-30. **Playwright tests** for visitor flows: browse by category, open album/lightbox.
+30. **Playwright tests** for visitor flows: browse by tag, open album/lightbox.
 
 ## Phase 9 — Testing & quality assurance
 
@@ -126,7 +126,7 @@ Delivery (Phase 6) ends with a published artifact. This phase removes the human 
 - **Self-hosted runner = arbitrary code on your machine** — the Phase 7 runner must only ever be attached to a private repo, and fork PRs must not be able to trigger workflows on it. A workflow running there has your filesystem, Docker socket and SSH keys in reach.
 - **Single VPS = single point of failure** — acceptable for a hobbyist portfolio, but keep the Postgres + media backups tested and offline (R2/B2), not on the same box.
 - **Rebuild storms**: only a concern if publishing is later automated. With the manual button (decision A) there is none — a debounce is required *before* adding auto-triggering, not now (see `ARCHITECTURE.md` §7).
-- **Renaming breaks public URLs**: changing a category/album `slug` changes its path, and no redirect is served. Accepted for the PoC (no existing traffic to preserve); a real site would need a slug-history table.
+- **Renaming breaks public URLs**: changing a tag/album `slug` changes its path, and no redirect is served. Accepted for the PoC (no existing traffic to preserve); a real site would need a slug-history table.
 - **UI design is where AI-generated output is most visible** — budget real iteration time with the photographer in Phase 2; a generic-looking portfolio undermines the PoC.
 - **Test scope for a PoC**: keep the E2E suite focused on critical flows (upload → publish → browse); exhaustive UI testing isn't worth the cost here.
 - **K8s specifics**: keep the manifests portable so the Compose → k3s move is a redeploy, not a rewrite; each image must be pushed to a registry the target can pull from.

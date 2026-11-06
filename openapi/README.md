@@ -46,9 +46,13 @@ today — it becomes usable once the security configuration lands.
 These are the choices a consumer would otherwise have to guess at. Changing any of them
 is a contract change, not an implementation detail.
 
-- **`album` is the entity** (not "gallery"): a category contains albums, an album contains
-  photos. "Gallery" is the public *index page* that lists categories. Matches the domain
-  model in `../ARCHITECTURE.md` §4.
+- **`album` is the entity** (not "gallery"): albums are tagged (M:N). "Gallery" is the
+  public *index page*. Albums must have ≥1 tag; unpublished tags are hidden from public
+  lists/pickers but do **not** affect album visibility. Tags use `weight` (higher first),
+  sorted by weight desc/name asc. Filtering uses **AND** semantics for multiple tags.
+  Routes: public `/api/albums` (filtered by `tag`), `/api/tags`, `/api/albums/{slug}/photos`.
+  Admin: `/admin/albums`, `/admin/tags`, `/admin/photos`. Tags can be created inline
+  from the album form; only published/assignable tags may be attached.
 - **Split API**: `/api/**` public and read-only (no public write endpoints); `/admin/**` requires a
   JWT bearer token and is reachable only over a private tunnel.
 - **Pagination**: zero-based `page` + `size`, page envelope `{items, page, size,
@@ -72,8 +76,9 @@ is a contract change, not an implementation detail.
   falls back to the first photo — for public reads, the first **published** photo, so a
   draft is never exposed as a cover. Deleting the cover photo clears the reference rather
   than failing.
-- **Publishing is per level**: a photo, its album and its category each have their own
-  `published` flag; publishing one never publishes its parent.
+- **Publishing is per level**: a photo, its album and its tag each have their own
+  `published` flag; publishing one never publishes its parent. Unpublishing a tag hides
+  it from public lists and admin pickers/search but does **not** affect album visibility.
 - **Rebuild trigger is manual** (decision A): `POST /admin/rebuild` is the "Rebuild site" button,
   with a nightly cron as the backstop. **Publishing never auto-triggers a rebuild**, and the
   response is asynchronous (`202`) — the footer's build date confirms completion. Auto-triggering
@@ -90,6 +95,6 @@ is a contract change, not an implementation detail.
 - Admin user management — one photographer, one account. The `app_user` table exists; no
   CRUD endpoints.
 - Refresh-token revocation/denylist — rotation covers the hobbyist threat model.
-- URL redirects on rename — changing a category/album `slug` breaks its previous public
+- URL redirects on rename — changing a tag/album `slug` breaks its previous public
   URL. Accepted for the PoC: a rename is a deliberate act, and there is no traffic to
   preserve yet. Redirects would need a slug-history table.
