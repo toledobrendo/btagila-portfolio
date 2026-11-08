@@ -1,28 +1,47 @@
 ---
-import '../styles/global.css';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import AlbumCard from '../components/AlbumCard.astro';
+import { albums } from '../data/albums';
 ---
 
-<!doctype html>
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Portrait portfolio — scaffold</title>
-	</head>
-	<body class="min-h-screen bg-neutral-950 text-neutral-100 antialiased">
-		<main class="mx-auto flex min-h-screen max-w-2xl flex-col justify-center gap-4 px-6">
-			<h1 class="text-3xl font-light tracking-tight">Portrait portfolio</h1>
-			<p class="text-neutral-400">
-				Frontend scaffold (Phase 1.2). Tailwind is wired up; the design system and real
-				pages arrive in Phase 6.
-			</p>
-			<p class="text-sm text-neutral-500">
-				Gallery data is fetched from the API at build time. Images are served by the
-				backend from its media volume.
-			</p>
-		</main>
-	</body>
-</html>
+<BaseLayout
+	title="BTAgila Digitalworks — Cosplay Photography"
+	description="Cosplay photography portfolio of BTagila Digitalworks, based in Manila, Philippines."
+>
+	<h1 class="sr-only">BTAgila Digitalworks — cosplay photography</h1>
+
+	<div class="pt-0 sm:pt-8 md:px-[256px] lg:pt-5">
+		<img
+			src="/images/hero.webp"
+			alt="BT/AGILAN Digitalworks — multimedia and tech, since 1909"
+			width="1242"
+			height="712"
+			loading="eager"
+			fetchpriority="high"
+			class="mx-auto block w-full max-w-[768px] md:max-w-none"
+		/>
+	</div>
+
+	<section
+		class="mx-auto w-[calc(100%_-_24px)] max-w-[366px] pb-0 pt-6 sm:w-full sm:max-w-[560px] md:w-[calc(100%_-_512px)] md:max-w-none lg:px-[3px] lg:pb-10 lg:pt-8"
+	>
+		<h2 class="mb-4 pl-2 font-roboto text-[24px] leading-[28px] text-ink lg:mb-6">
+			Featured Works
+		</h2>
+
+		<ul class="grid grid-cols-2 gap-[10px] sm:grid-cols-3 lg:grid-cols-4">
+			{
+				albums.map((album, index) => (
+					<li
+						class:list={[
+							index >= 6 && 'hidden lg:block',
+							index >= 4 && index < 6 && 'hidden sm:block',
+						]}
+					>
+						<AlbumCard album={album} />
+					</li>
+				))
+			}
+		</ul>
+	</section>
+</BaseLayout>

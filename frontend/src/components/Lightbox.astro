@@ -1,0 +1,151 @@
+---
+import type { AlbumImage } from '../data/albums';
+
+interface Props {
+	images: AlbumImage[];
+	albumTitle: string;
+}
+
+const { images, albumTitle } = Astro.props;
+---
+
+<dialog id="lightbox" class="lightbox" aria-label={`${albumTitle} image viewer`}>
+	<button
+		id="lightbox-close"
+		type="button"
+		aria-label="Close image viewer"
+		class="absolute right-4 top-4 z-10 flex h-12 w-12 items-center justify-center rounded-full bg-black/50 text-ink transition-colors hover:bg-black/75"
+	>
+		<svg
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="1.75"
+			stroke-linecap="round"
+			class="h-6 w-6"
+			aria-hidden="true"
+		>
+			<path d="M6 6l12 12M18 6L6 18"></path>
+		</svg>
+	</button>
+
+	<button
+		id="lightbox-prev"
+		type="button"
+		aria-label="Previous image"
+		class="absolute left-3 top-1/2 z-10 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 text-ink transition-colors hover:bg-black/75 sm:left-6"
+	>
+		<svg
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="1.75"
+			stroke-linecap="round"
+			stroke-linejoin="round"
+			class="h-7 w-7"
+			aria-hidden="true"
+		>
+			<path d="M15 5l-7 7 7 7"></path>
+		</svg>
+	</button>
+
+	<img
+		id="lightbox-image"
+		src={images[0]?.src}
+		alt={images[0]?.alt ?? ''}
+		decoding="async"
+		class="max-h-[85vh] max-w-[90vw] object-contain"
+	/>
+
+	<button
+		id="lightbox-next"
+		type="button"
+		aria-label="Next image"
+		class="absolute right-3 top-1/2 z-10 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 text-ink transition-colors hover:bg-black/75 sm:right-6"
+	>
+		<svg
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="1.75"
+			stroke-linecap="round"
+			stroke-linejoin="round"
+			class="h-7 w-7"
+			aria-hidden="true"
+		>
+			<path d="M9 5l7 7-7 7"></path>
+		</svg>
+	</button>
+</dialog>
+
+<script
+	is:inline
+	type="application/json"
+	id="lightbox-data"
+	set:html={JSON.stringify(images).replace(/</g, '\\u003c')}
+></script>
+
+<script>
+	type LightboxImage = { src: string; alt: string };
+
+	const initLightbox = () => {
+		const dataElement = document.getElementById('lightbox-data');
+		if (!dataElement) return;
+
+		const images = JSON.parse(dataElement.textContent || '[]') as LightboxImage[];
+		if (images.length === 0) return;
+
+		const dialog = document.getElementById('lightbox') as HTMLDialogElement | null;
+		const image = document.getElementById('lightbox-image') as HTMLImageElement | null;
+		const closeButton = document.getElementById('lightbox-close') as HTMLButtonElement | null;
+		const prevButton = document.getElementById('lightbox-prev') as HTMLButtonElement | null;
+		const nextButton = document.getElementById('lightbox-next') as HTMLButtonElement | null;
+
+		if (!dialog || !image || !closeButton || !prevButton || !nextButton) return;
+
+		let current = 0;
+
+		const show = (index: number) => {
+			current = (index + images.length) % images.length;
+			image.src = images[current].src;
+			image.alt = images[current].alt;
+		};
+
+		const open = (index: number) => {
+			show(index);
+			if (!dialog.open) dialog.showModal();
+		};
+
+		document.querySelectorAll<HTMLElement>('[data-lightbox-index]').forEach((trigger) => {
+			trigger.addEventListener('click', () => {
+				open(Number(trigger.dataset.lightboxIndex || 0));
+			});
+		});
+
+		prevButton.addEventListener('click', () => show(current - 1));
+		nextButton.addEventListener('click', () => show(current + 1));
+		closeButton.addEventListener('click', () => dialog.close());
+
+		dialog.addEventListener('keydown', (event) => {
+			if (event.key === 'ArrowLeft') {
+				event.preventDefault();
+				show(current - 1);
+			}
+
+			if (event.key === 'ArrowRight') {
+				event.preventDefault();
+				show(current + 1);
+			}
+		});
+
+		dialog.addEventListener('click', (event) => {
+			if (event.target === dialog) dialog.close();
+		});
+	};
+
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', initLightbox, { once: true });
+	} else {
+		initLightbox();
+	}
+</script>

@@ -1,0 +1,81 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import TagChip from '../../components/TagChip.astro';
+import Lightbox from '../../components/Lightbox.astro';
+import { albums, type Album } from '../../data/albums';
+
+interface Props {
+	album: Album;
+}
+
+export function getStaticPaths() {
+	return albums.map((album) => ({
+		params: { slug: album.slug },
+		props: { album },
+	}));
+}
+
+const { album } = Astro.props;
+
+const publishedLabel = new Intl.DateTimeFormat('en-US', {
+	month: 'short',
+	day: 'numeric',
+	year: 'numeric',
+	timeZone: 'UTC',
+}).format(new Date(`${album.published}T00:00:00Z`));
+---
+
+<BaseLayout
+	title={`${album.title} — BTagila Digitalworks`}
+	description={`${album.title}, a cosplay photography album by BTagila Digitalworks.`}
+>
+	<div
+		class="mx-auto w-[calc(100%_-_24px)] max-w-[366px] pt-6 sm:w-full sm:max-w-[560px] sm:pt-12 md:w-[calc(100%_-_512px)] md:max-w-none"
+	>
+		<div class="grid grid-cols-1 gap-8 md:grid-cols-[180px_minmax(0,1fr)] md:items-start md:gap-6">
+			<img
+				src={album.cover}
+				alt={`${album.title} cover`}
+				width="640"
+				height="960"
+				class="aspect-[2/3] w-[180px] max-w-full object-cover"
+			/>
+
+			<div class="min-w-0">
+				<h1 class="font-roboto text-[28px] leading-tight text-ink sm:text-[32px]">
+					{album.title}
+				</h1>
+				<p class="mt-2 text-[14px] leading-6 text-chip">Date Published: {publishedLabel}</p>
+				<div class="mt-4 flex flex-wrap gap-1">
+					{album.tags.map((tag) => <TagChip label={tag} />)}
+				</div>
+			</div>
+		</div>
+
+		<div class="mt-6 grid grid-cols-2 gap-[10px] sm:grid-cols-3 lg:grid-cols-4">
+			{
+				album.images.map((image, index) => (
+					<button
+						type="button"
+						data-lightbox-index={index}
+						aria-haspopup="dialog"
+						aria-label={`Open ${image.alt}`}
+						class="group relative aspect-[2/3] overflow-hidden bg-[#212121]"
+					>
+						<img
+							src={image.src}
+							alt={image.alt}
+							width="640"
+							height="960"
+							loading="lazy"
+							decoding="async"
+							class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+						/>
+					</button>
+				))
+			}
+		</div>
+	</div>
+
+	<Lightbox images={album.images} albumTitle={album.title} />
+</BaseLayout>

@@ -1,3 +1,7 @@
+# app source data (the repo-root "data/" rule targets runtime data)
+!src/data/
+!src/data/**
+
 # build output
 dist/
 # generated types

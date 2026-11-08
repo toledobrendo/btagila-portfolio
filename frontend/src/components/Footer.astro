@@ -1,0 +1,11 @@
+---
+interface Props {
+	timestamp: string;
+}
+
+const { timestamp } = Astro.props;
+---
+
+<footer class="mt-auto px-4 py-4 text-center text-[10px] leading-none text-chip">
+	Last build: <time datetime={timestamp}>{timestamp}</time>
+</footer>

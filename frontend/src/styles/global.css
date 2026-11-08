@@ -1,1 +1,126 @@
 @import "tailwindcss";
+
+@theme {
+	--font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+	--font-roboto: "Roboto", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+	--color-page: #1b1b1b;
+	--color-surface: #272727;
+	--color-ink: #e7e7e7;
+	--color-accent: #062d0e;
+	--color-chip: #cac4d0;
+	--color-palette: #3e3e3e;
+	--color-muted: #9f9f9f;
+	--color-line: #49454f;
+}
+
+@layer base {
+	html {
+		color-scheme: dark;
+		scroll-behavior: smooth;
+	}
+
+	body {
+		min-height: 100vh;
+		background: linear-gradient(to bottom, #1b1b1b 0%, #1b1b1b 71.635%, #062d0e 100%);
+		color: #e7e7e7;
+		font-family: var(--font-sans);
+		-webkit-font-smoothing: antialiased;
+		text-rendering: optimizeLegibility;
+	}
+
+	:focus-visible {
+		outline: 2px solid #cac4d0;
+		outline-offset: 3px;
+	}
+
+	[hidden] {
+		display: none !important;
+	}
+
+	details:not([open]) > nav {
+		display: none;
+	}
+}
+
+/* ------------------------------------------------------------------ *
+ * Loading overlay
+ * ------------------------------------------------------------------ */
+
+#loading-overlay {
+	display: none;
+	position: fixed;
+	inset: 0;
+	z-index: 100;
+	align-items: center;
+	justify-content: center;
+	background: rgba(27, 27, 27, 0.82);
+	backdrop-filter: blur(2px);
+}
+
+html[data-loading="true"] #loading-overlay {
+	display: flex;
+}
+
+.loading-spinner {
+	width: 48px;
+	height: 48px;
+	border-radius: 9999px;
+	border: 3px solid rgba(202, 196, 208, 0.25);
+	border-top-color: #cac4d0;
+	animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+/* ------------------------------------------------------------------ *
+ * Lightbox
+ * ------------------------------------------------------------------ */
+
+dialog.lightbox {
+	position: fixed;
+	inset: 0;
+	margin: 0;
+	width: 100vw;
+	max-width: 100vw;
+	height: 100vh;
+	max-height: 100vh;
+	overflow: hidden;
+	border: 0;
+	padding: 0;
+	background: transparent;
+	color: #e7e7e7;
+}
+
+dialog.lightbox[open] {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+dialog.lightbox::backdrop {
+	background: rgba(0, 0, 0, 0.92);
+	backdrop-filter: blur(2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	html {
+		scroll-behavior: auto;
+	}
+
+	.loading-spinner {
+		animation: none;
+	}
+
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+	}
+}

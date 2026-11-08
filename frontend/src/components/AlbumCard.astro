@@ -1,0 +1,37 @@
+---
+import type { Album } from '../data/albums';
+import TagChip from './TagChip.astro';
+
+interface Props {
+	album: Album;
+}
+
+const { album } = Astro.props;
+---
+
+<a href={`/gallery/${album.slug}`} class="group block">
+	<div class="relative aspect-[2/3] overflow-hidden bg-[#212121]">
+		<img
+			src={album.cover}
+			alt=""
+			width="640"
+			height="960"
+			loading="lazy"
+			decoding="async"
+			class="absolute inset-0 h-full w-full object-cover transition-opacity duration-300 group-hover:opacity-0 group-focus-visible:opacity-0"
+		/>
+		<img
+			src={album.hover}
+			alt=""
+			width="640"
+			height="960"
+			loading="lazy"
+			decoding="async"
+			class="absolute inset-0 h-full w-full object-cover opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-visible:opacity-100"
+		/>
+	</div>
+	<p class="mt-2 truncate font-sans text-[14px] leading-tight text-ink">{album.title}</p>
+	<div class="mt-2 flex flex-wrap gap-1">
+		{album.tags.map((tag) => <TagChip label={tag} />)}
+	</div>
+</a>
