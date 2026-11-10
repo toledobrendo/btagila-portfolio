@@ -2,7 +2,7 @@
 
 The Figma brief for **ROADMAP.md Phase 2 step 7**. It lists every screen, the navigation
 between them, the frame sizes to work in, and what to hand back so the design can be
-transcribed into the real Tailwind theme. **Taxonomy:** albums use **tags** (many-to-many), not categories. An album must have ≥1 tag; filtering uses AND semantics for multiple tags; unpublished tags are hidden from public tag lists/pickers but do not affect album visibility. Tags have a **weight** (higher = higher priority), sortable by weight desc/name asc. Tags can be created inline from the album form. Keep routes under `/gallery` (use `?tag=`).
+transcribed into the real Tailwind theme. **Taxonomy:** albums use **tags** (many-to-many). An album must have ≥1 tag; filtering uses AND semantics for multiple tags; unpublished tags are hidden from public tag lists/pickers but do not affect album visibility. Tags have a **weight** (higher = higher priority), sortable by weight desc/name asc. Tags can be created inline from the album form. Keep routes under `/gallery` (use `?tag=`).
 
 - **Behaviour** (states, flows, error cases) lives in `USE-CASES.md`.
 - **Data** (what each screen can show) lives in `openapi/openapi.yaml`.
@@ -65,9 +65,8 @@ The admin app runs on the photographer's **laptop only** — never publicly, nev
 
 ```mermaid
 flowchart TD
-    H["/ — Home"] --> G["/gallery — Gallery index"]
-    G --> C["/gallery/{category} — Category"]
-    C --> A["/gallery/{category}/{album} — Album"]
+    H["/ — Home"] --> G["/gallery — Gallery index<br/>tag filter (?tag=)"]
+    G --> A["/gallery/{album} — Album"]
     A -. "click a photo" .-> L["Lightbox (overlay)"]
     H --> AB["/about — About"]
     H --> CT["/contact — Contact"]
@@ -89,7 +88,6 @@ have **≥1 tag**.
 ```mermaid
 flowchart TD
     LG["/login — Sign in"] --> DB["/ — Dashboard<br/>counts · quick actions · Rebuild site"]
-    DB --> CA["/categories — Categories"]
     DB --> AL["/albums — Albums"]
     AL --> AD["/albums/{id} — Album detail<br/>metadata · cover · photo list"]
     AD --> UP["Upload (drawer or modal)"]
@@ -103,18 +101,17 @@ flowchart TD
 
 ## 3. Screen inventory — public site
 
-8 screens. `Serves` links each to its use case in `USE-CASES.md`.
+7 screens. `Serves` links each to its use case in `USE-CASES.md`.
 
 | # | Route | Screen | Must include | Serves |
 |---|---|---|---|---|
 | 1 | `/` | **Home** | hero image, short intro, 1–3 featured albums, header, footer | UC-VIS-01 |
-| 2 | `/gallery` | **Gallery index** | category cards (cover + name), header, footer | UC-VIS-02 |
-| 3 | `/gallery/{category}` | **Category** | breadcrumb, album cards (cover + title), header, footer | UC-VIS-03 |
-| 4 | `/gallery/{category}/{album}` | **Album** | breadcrumb, album title/description, **photo grid**, header, footer | UC-VIS-04, UC-VIS-09 |
-| 5 | — | **Lightbox** (overlay on 4) | full image, prev/next, close, caption, keyboard affordances | UC-VIS-05 |
-| 6 | `/about` | **About** | portrait, bio copy, optional CTA to Contact | UC-VIS-06 |
-| 7 | `/contact` | **Contact** | Facebook + Instagram links, `mailto:` email. **No form.** | UC-VIS-07 |
-| 8 | — | **404** | short message, link home / gallery | UC-VIS-08 |
+| 2 | `/gallery` | **Gallery index** | album cards (cover + title), tag filter chips, search, header, footer | UC-VIS-02, UC-VIS-03 |
+| 3 | `/gallery/{album}` | **Album** | breadcrumb, album title/description, **tag chips**, **photo grid**, header, footer | UC-VIS-04, UC-VIS-09 |
+| 4 | — | **Lightbox** (overlay on 3) | full image, prev/next, close, caption, keyboard affordances | UC-VIS-05 |
+| 5 | `/about` | **About** | portrait, bio copy, optional CTA to Contact | UC-VIS-06 |
+| 6 | `/contact` | **Contact** | Facebook + Instagram links, `mailto:` email. **No form.** | UC-VIS-07 |
+| 7 | — | **404** | short message, link home / gallery | UC-VIS-08 |
 
 **Global elements:** header (incl. the mobile menu, and its open/closed states) and footer
 (© line, social icons, **build date** — the thing that proves a rebuild landed).
@@ -123,16 +120,15 @@ flowchart TD
 
 ## 4. Screen inventory — admin
 
-6 screens. Desktop only.
+5 screens. Desktop only.
 
 | # | Route | Screen | Must include | Serves |
 |---|---|---|---|---|
 | 1 | `/login` | **Sign in** | email + password, submit, inline error | UC-ADM-01 |
-| 2 | `/` | **Dashboard** | counts (categories/albums/photos, drafts), quick actions, **"Rebuild site" button + last-built indicator** | UC-ADM-10, UC-ADM-11 |
-| 3 | `/categories` | **Categories** | list with **drag handles** (order), published toggle, create/edit, delete with its "contains albums" refusal | UC-ADM-03 |
-| 4 | `/albums` | **Albums** | list, filter by category, draft/published state, create | UC-ADM-04 |
-| 5 | `/albums/{id}` | **Album detail** | metadata form (title, description, category, slug, published), **cover picker**, **photo list** with reorder + publish/draft + delete + **alt text**, upload entry point | UC-ADM-04, UC-ADM-06, UC-ADM-07, UC-ADM-08, UC-ADM-09 |
-| 6 | — | **Upload** (drawer/modal from 5) | drag-and-drop dropzone, per-file progress, per-file validation errors, result | UC-ADM-05 |
+| 2 | `/` | **Dashboard** | counts (tags/albums/photos, drafts), quick actions, **"Rebuild site" button + last-built indicator** | UC-ADM-10, UC-ADM-11 |
+| 3 | `/albums` | **Albums** | list, filter by tag, draft/published state, create | UC-ADM-04 |
+| 4 | `/albums/{id}` | **Album detail** | metadata form (title, description, **tags**, slug, published), **cover picker**, **photo list** with reorder + publish/draft + delete + **alt text**, upload entry point | UC-ADM-04, UC-ADM-06, UC-ADM-07, UC-ADM-08, UC-ADM-09 |
+| 5 | — | **Upload** (drawer/modal from 4) | drag-and-drop dropzone, per-file progress, per-file validation errors, result | UC-ADM-05 |
 
 **Global admin elements:** app shell (sidebar or topbar), current-user/sign-out, and the
 **401 → re-authenticate** and **backend-unreachable** treatment (`UC-ADM-02`, `UC-ADM-12`).
@@ -146,14 +142,14 @@ finished, and each already has criteria in `USE-CASES.md`:
 
 | State | Where | Notes |
 |---|---|---|
-| **Empty** | Gallery index, Category, Album, admin lists | no categories / no albums / no photos — say what to do next |
+| **Empty** | Gallery index, Album, admin lists | no albums / no photos — say what to do next |
 | **Loading** | Admin lists, upload | skeletons or spinners |
 | **Upload lifecycle** | Admin upload | idle → dragging → uploading → *one file invalid* → success; plus an **atomic failure** (nothing is imported) |
 | **Draft vs published** | All admin content | visually unmistakable — this is the app's core risk (a draft leaking looks identical to a bug) |
 | **Alt-text missing** | Album detail → publish | a photo with empty alt text **cannot be published**; design the block and how to fix it |
 | **401 / expired session** | Any admin screen | sends back to login, quietly |
 | **Backend unreachable** | Any admin screen | tunnel down — clear, non-destructive error |
-| **409 refusals** | Categories (has albums), Albums (has photos) | explain *why*, offer the way out |
+| **409 refusals** | Albums (has photos) | explain *why*, offer the way out |
 | **Long text** | Titles, descriptions | truncation vs wrap rules |
 | **Reduced motion** | Lightbox, transitions | honour `prefers-reduced-motion` |
 | **Mobile menu** | Public header | open and closed |
@@ -181,7 +177,7 @@ draft/published.
 **Assets** — wordmark/logo (**SVG**), favicon, an OG-image template.
 
 **Figma structure suggestion:** one file, pages `Tokens` · `Components` · `Public` · `Admin`,
-and **name each frame after its route** (`gallery/{category}/{album}`). That single habit makes
+and **name each frame after its route** (`gallery/{album}`). That single habit makes
 the handoff mechanical.
 
 ---
@@ -224,7 +220,7 @@ consequences I have to implement.
 ## 9. Out of scope for the design
 
 - No contact form — Contact is static links (`openapi/README.md`).
-- No search, no tags, no multi-user, no i18n.
+- No multi-user, no i18n.
 - No mobile admin.
 - No on-site editing UI — content is authored in admin, served statically.
 
@@ -232,6 +228,6 @@ consequences I have to implement.
 
 ## 10. Rough effort
 
-≈ **14 screens** (8 public + 6 admin) plus ~**10 state variants** and the token/component
+≈ **12 screens** (7 public + 5 admin) plus ~**10 state variants** and the token/component
 frames ≈ **15–20 artboards**. The public album + lightbox is the one to nail first — it's the
 most image-heavy, the most visited, and the vertical slice that validates the tokens.

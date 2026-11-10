@@ -151,21 +151,21 @@ sequenceDiagram
 
 ```mermaid
 erDiagram
-    CATEGORY ||--o{ ALBUM : contains
+    %% album_tags joins ALBUM and TAG; an album must have >= 1 tag.
+    ALBUM }o--o{ TAG : "tagged with"
     ALBUM ||--o{ PHOTO : contains
     ALBUM |o--o| PHOTO : "cover"
     APP_USER }o--o{ ALBUM : manages
 
-    CATEGORY {
+    TAG {
         uuid id PK
         text name
         text slug
-        int sort_order
+        int weight
         bool published
     }
     ALBUM {
         uuid id PK
-        -- album_tags (M:N) to tags; albums must have >= 1 tag
         text title
         text slug
         text description

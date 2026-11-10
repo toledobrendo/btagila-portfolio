@@ -32,24 +32,24 @@ Each module builds to an **independent Docker image**, versioned and deployable 
 2. **Scaffold the public frontend**: `npm create astro` with TypeScript, Tailwind CSS — pure static build (no Node adapter needed anymore).
 3. **Scaffold the admin app** (separate frontend, e.g. Astro or React + Vite + Tailwind) — designed to run **locally** on the photographer's machine.
 4. **Init git** with a sensible `.gitignore` (exclude `data/`, build outputs, `.env`).
-5. **Define the API contract first** (OpenAPI spec): endpoints for categories, albums, photos and admin operations — including the **JWT bearer security scheme** and the CORS-allowed origins. This is the contract all three modules are built against.
+5. **Define the API contract first** (OpenAPI spec): endpoints for tags, albums, photos and admin operations — including the **JWT bearer security scheme** and the CORS-allowed origins. This is the contract all three modules are built against.
 
 ## Phase 2 — Use cases, UI design & test strategy
 
-6. **Use case catalog**: actors (visitor, photographer/admin) and their scenarios — visitor: browse galleries by tag, view album with lightbox, read about, reach the photographer via Facebook/Instagram; admin: log in, batch-upload photos, organize into albums/tags, reorder, publish/draft, pick cover. Write each scenario as **Given/When/Then acceptance criteria — these double directly as test cases** in the phases that follow. Deliverable: `USE-CASES.md` (draft for review).
+6. **Use case catalog**: actors (visitor, photographer/admin) and their scenarios — visitor: browse galleries by tag, view album with lightbox, read about, reach the photographer via Facebook/Instagram; admin: log in, batch-upload photos, organize into albums/tags, reorder, publish/draft, pick cover. Write each scenario as **Given/When/Then acceptance criteria — these double directly as test cases** in the phases that follow. Deliverable: `USE-CASES.md` (approved).
 7. **UI design**: design the key screens in Figma and define **design tokens** up front (typography, palette, spacing). See **`DESIGN.md`** — the brief: screen inventory, navigation map, frame sizes (Tailwind-aligned breakpoints), states to cover, the token handoff, and the decisions to settle first. Iterate with the photographer on the mockups *before* any UI is built — taste is the product.
-8. **Test strategy**: decide per level what gets tested — unit + integration (Testcontainers with PostgreSQL) for the backend, contract tests generated from the OpenAPI spec, E2E (Playwright) for the critical admin and visitor flows, plus a11y/performance checks. Plan the CI pipeline that will run it all (admin first — Phase 6).
+8. **Test strategy**: decide per level what gets tested — unit + integration (Testcontainers with PostgreSQL) for the backend, contract tests generated from the OpenAPI spec, E2E (Playwright) for the critical admin and visitor flows, plus a11y/performance checks. Plan the CI pipeline that will run it all (admin first — Phase 6). Deliverable: `TEST-STRATEGY.md`.
 
 ## Phase 3 — Data & media layer
 
-9. **PostgreSQL schema** (via Flyway migrations): `categories`, `albums`, `photos` (title, ordering, published flag, cover), `app_user`.
+9. **PostgreSQL schema** (via Flyway migrations): `tags`, `albums`, `album_tags` (M:N), `photos` (title, ordering, published flag, cover), `app_user`.
 10. **Image pipeline** with `imgscalr` or TwelveMonkeys/ImageIO (or shell out to `sharp` via a small Node tool): on upload, generate a small **fixed** set of WebP renditions (640/1280/2048 px **longest side**, so portrait and landscape get the same steps), store originals on disk, record metadata in PostgreSQL. Originals are assumed to be ≤ 2048 px on the longest side, so there is no on-demand resizing and no upscaling — adding a size later is a config change, not a new code path.
 11. **Local deployment of the whole stack**: a root `docker-compose.yml` brings up PostgreSQL + backend + frontend + admin, and each module also runs standalone from its own Dockerfile (so any single one can be deployed/run on the local machine). Keep config 12-factor style (env vars) from day one so the same images run locally, on the VPS, and on k3s unchanged.
 
 ## Phase 4 — API & security
 
 12. **Auth (JWT)**: admin login endpoint (bcrypt-hashed password), role claim, Spring Security stateless JWT validation on `/admin/**`; CORS restricted to the admin's local origin(s). Access token + short expiry, in-memory on the admin side. **Split the API**: `/api/**` public (read-only), `/admin/**` reachable only over a private tunnel.
-13. **CRUD endpoints**: categories, albums, photos (multipart upload, reorder, publish/draft, cover selection). Batch uploads are **atomic** (one bad file → nothing persisted); publishing a photo requires non-empty `altText`; the admin photo list includes drafts (`GET /admin/albums/{id}/photos`).
+13. **CRUD endpoints**: tags, albums, photos (multipart upload, reorder, publish/draft, cover selection). Batch uploads are **atomic** (one bad file → nothing persisted); publishing a photo requires non-empty `altText`; the admin photo list includes drafts (`GET /admin/albums/{id}/photos`).
 14. **Public read endpoints + media**: published galleries/photos only; media files served by the backend with `ETag` and `Cache-Control: immutable` on content-hashed renditions.
 15. **Probe-ready backend behavior**: Spring Boot Actuator health/readiness endpoints, graceful shutdown, all config via env vars — no hardcoded paths, media directory configurable via volume mount (works for Compose now, k8s probes later).
 16. **Tests alongside**: unit + integration tests with Testcontainers (real PostgreSQL), security tests, and contract tests against the OpenAPI spec — driven by the Phase 2 acceptance criteria.
@@ -57,7 +57,7 @@ Each module builds to an **independent Docker image**, versioned and deployable 
 ## Phase 5 — Admin UI (separate module)
 
 17. **Login screen** + token/session storage.
-18. **Screens**: dashboard, drag-and-drop upload, tag & album management, photo reorder, publish/draft toggle, cover picker.
+18. **Screens**: dashboard, drag-and-drop upload, album management (including inline tags), photo reorder, publish/draft toggle, cover picker.
 19. **Playwright tests** for the critical admin flows: login, upload, organize, publish.
 
 ## Phase 6 — CI & continuous delivery for admin (practice)
@@ -79,7 +79,7 @@ Delivery (Phase 6) ends with a published artifact. This phase removes the human 
 ## Phase 8 — Public site
 
 26. **Apply the design system** from Phase 2 (tokens → Tailwind config, layout, typography).
-27. **Pages**: Home (hero + featured work), Gallery index → Category → Album with lightbox, About, Contact.
+27. **Pages**: Home (hero + featured work), Gallery index (tag filter) → Album with lightbox, About, Contact.
 28. **Contact page**: static Astro linking Facebook/Instagram (plus a `mailto:` email) — no form and no backend write, so the public API stays read-only.
 29. **Data fetching + rebuild trigger**: build-time fetching from the API. The trigger is a manual **"Rebuild site" button** in admin, with a nightly cron as the backstop (`ARCHITECTURE.md` §7, decision A) — publishing does **not** auto-trigger a rebuild, and automatic triggering + debounce is a documented growth path, not PoC scope. The footer shows the **build date**, baked in at build time, so a landed rebuild is visible at a glance. Deploy = new frontend image tag → rolling update.
 30. **Playwright tests** for visitor flows: browse by tag, open album/lightbox.

@@ -1,6 +1,6 @@
 # Use cases & acceptance criteria
 
-**Status: draft for review.** This is the ROADMAP.md Phase 2 step 6 deliverable.
+**Status: approved.** This is the ROADMAP.md Phase 2 step 6 deliverable.
 
 Actors, their scenarios, and a set of **testable outcomes** for each — written *before* the
 code so the acceptance criteria can be handed to the test suites in Phases 4, 5, 8 and 9
@@ -9,7 +9,7 @@ reference, which is what keeps the document and the tests from drifting apart.
 
 Related: `ROADMAP.md` (sequencing) · `ARCHITECTURE.md` (design) · `openapi/openapi.yaml`
 (the contract these criteria describe) · `DESIGN.md` (the screens these criteria are about) ·
-`CI-CD.md` (where they run).
+`CI-CD.md` (where they run) · `TEST-STRATEGY.md` (the suites these criteria become).
 
 ---
 
@@ -71,24 +71,24 @@ genuinely browser-runtime. Criterion tags reflect this — a lot of `B`, some `E
 ### UC-VIS-02 — Browse the gallery index
 **Actor** Visitor · **Trigger** `GET /gallery` · **Levels** `B` `C`
 
-- **AC-VIS-02.1** The gallery index lists exactly the published categories, in `sortOrder`
-  (matches `listPublicCategories`).
-- **AC-VIS-02.2** No draft category appears (§6, UC-SEC-01).
-- **AC-VIS-02.3** Each category links to `/gallery/{slug}`.
+- **AC-VIS-02.1** The gallery index lists exactly the published albums, in `sortOrder`
+  (matches `listPublicAlbums`).
+- **AC-VIS-02.2** No draft album appears (§6, UC-SEC-01); the tag filter offers only published
+  tags (`listPublicTags`).
+- **AC-VIS-02.3** Each album links to `/gallery/{slug}`.
 
-### UC-VIS-03 — Browse albums in a category
-**Actor** Visitor · **Trigger** `GET /gallery/{slug}` · **Levels** `B` `P`
+### UC-VIS-03 — Filter albums by tag
+**Actor** Visitor · **Trigger** `GET /gallery?tag={slug}` · **Levels** `B` `E` `P`
 
-- **AC-VIS-03.1** Only published albums of that category are listed, in `sortOrder`.
+- **AC-VIS-03.1** Only published albums carrying the selected tag(s) are listed, in `sortOrder`;
+  multiple tags use **AND** semantics.
 - **AC-VIS-03.2** Each album shows its cover photo — or, when no cover is picked, the first
   published photo.
-- **AC-VIS-03.3** Given a category with no published albums, Then an empty state renders and
-  the build does not fail.
 - **AC-VIS-03.4** Given more albums than one page, Then `page`/`size` are honoured and
   `totalItems`/`totalPages` exclude drafts.
 
 ### UC-VIS-04 — Open an album
-**Actor** Visitor · **Trigger** `GET /gallery/{category}/{album}` · **Levels** `B` `P`
+**Actor** Visitor · **Trigger** `GET /gallery/{album}` · **Levels** `B` `P`
 
 - **AC-VIS-04.1** The grid shows only published photos, in display order.
 - **AC-VIS-04.2** Every `<img>` declares `width`/`height` (no layout shift) and has a non-empty
@@ -163,32 +163,18 @@ genuinely browser-runtime. Criterion tags reflect this — a lot of `B`, some `E
 - **AC-ADM-02.4** Logout drops the tokens client-side; the next admin call → `401` (no
   server-side session to destroy).
 
-### UC-ADM-03 — Manage categories
-**Actor** Photographer · **Trigger** `/admin/categories*` · **Levels** `I` `E`
-
-- **AC-ADM-03.1** Create → `201`; `slug` derived from `name` when omitted; starts **unpublished**
-  unless `published: true` is sent.
-- **AC-ADM-03.2** Creating a category whose slug already exists → `409`, nothing created.
-- **AC-ADM-03.3** `PUT /admin/categories/order` with every category id → `204`, and
-  `listAdminCategories` reflects the new order.
-- **AC-ADM-03.4** A reorder body that omits an existing id → `400`.
-- **AC-ADM-03.5** `PUT /admin/categories/{id}` replaces name/slug/order/published → `200`;
-  toggling `published` works.
-- **AC-ADM-03.6** Deleting an **empty** category → `204`.
-- **AC-ADM-03.7** Deleting a category that **still contains albums** → `409`; nothing is
-  deleted.
-- **AC-ADM-03.8** A blank or over-long `name` → `400` with `errors[]`.
-- **AC-ADM-03.9** Changing a `slug` — category or album — changes its public URL, and **no
-  redirect** is served (accepted PoC limitation; see §7 #8).
-
 ### UC-ADM-04 — Manage albums
 **Actor** Photographer · **Trigger** `/admin/albums*` · **Levels** `I` `E`
 
-- **AC-ADM-04.1** Create requires `title` + `categoryId` → `201`; starts as a draft by default.
-- **AC-ADM-04.2** `slug` is unique **within a category**; a collision → `409`.
-- **AC-ADM-04.3** A missing `categoryId` → `400`.
-- **AC-ADM-04.4** `PUT /admin/albums/{id}` updates title, description, category, order,
-  published and `coverPhotoId`.
+*Tags are created inline from the album form; there is no separate tag-management use case in
+the PoC.*
+
+- **AC-ADM-04.1** Create requires `title` + ≥ 1 published/assignable tag → `201`; starts as a
+  draft by default. A tag can be created inline (`createTag`) before it is attached.
+- **AC-ADM-04.2** `slug` is globally unique; a collision → `409`.
+- **AC-ADM-04.3** A missing `title` or an empty/unknown/unpublished `tagIds` set → `400`.
+- **AC-ADM-04.4** `PUT /admin/albums/{id}` updates title, description, tags, order, published
+  and `coverPhotoId`.
 - **AC-ADM-04.5** `coverPhotoId` pointing at a photo **not** in the album → `400`; `null` clears
   the pick.
 - **AC-ADM-04.6** `PATCH /admin/albums/{id}/publish` → `200`; after a rebuild the album appears
@@ -197,6 +183,9 @@ genuinely browser-runtime. Criterion tags reflect this — a lot of `B`, some `E
 - **AC-ADM-04.8** Deleting an empty album → `204`, and any cover reference is cleared.
 - **AC-ADM-04.9** `GET /admin/albums/{id}/photos` lists **every** photo in the album, drafts
   included, in display order — the admin screen's photo list.
+- **AC-ADM-04.10** Removing the last tag from an album → `400` (every album keeps ≥ 1 tag).
+- **AC-ADM-04.11** Changing an album's `slug` changes its public URL, and **no redirect** is
+  served (accepted PoC limitation; see §7 #8).
 
 ### UC-ADM-05 — Upload photos into an album
 **Actor** Photographer · **Trigger** `POST /admin/albums/{id}/photos` · **Levels** `U` `I` `E`
@@ -251,7 +240,7 @@ genuinely browser-runtime. Criterion tags reflect this — a lot of `B`, some `E
 
 - **AC-ADM-08.1** `published: true` → after a rebuild the photo appears in the public album.
 - **AC-ADM-08.2** `published: false` → it disappears from every public read.
-- **AC-ADM-08.3** Publishing a photo never publishes its album or category (each level is
+- **AC-ADM-08.3** Publishing a photo never publishes its album or tags (each level is
   independent).
 - **AC-ADM-08.4** Setting `published: true` on a photo with an empty `altText` → `400`; the
   admin UI blocks it before the request is sent (same rule enforced on both layers).
@@ -298,8 +287,8 @@ genuinely browser-runtime. Criterion tags reflect this — a lot of `B`, some `E
 ### UC-ADM-13 — Work from empty states
 **Actor** Photographer · **Levels** `E`
 
-- **AC-ADM-13.1** With zero categories, zero albums or zero photos, each screen shows an
-  actionable empty state and does not crash.
+- **AC-ADM-13.1** With zero tags, zero albums or zero photos, each screen shows an actionable
+  empty state and does not crash.
 
 ---
 
@@ -331,9 +320,11 @@ genuinely browser-runtime. Criterion tags reflect this — a lot of `B`, some `E
 ### UC-SEC-01 — Unpublished content never leaks
 **Levels** `I` `C` `E`
 
-- **AC-SEC-01.1** A draft category/album/photo is absent from **every** public response —
-  including pagination `totalItems`/`totalPages`.
-- **AC-SEC-01.2** A draft slug → `404`, never `200` and never `403` (no existence oracle).
+- **AC-SEC-01.1** A draft album/photo is absent from **every** public response — including
+  pagination `totalItems`/`totalPages`. An unpublished tag is absent from public tag lists,
+  pickers and public album views, but does **not** hide the albums that carry it.
+- **AC-SEC-01.2** A draft tag/album slug → `404`, never `200` and never `403` (no existence
+  oracle).
 - **AC-SEC-01.3** Album objects embedded in public responses carry only published data; a
   draft photo is never exposed as a public cover — the cover falls back to the first
   **published** photo.
@@ -401,8 +392,8 @@ genuinely browser-runtime. Criterion tags reflect this — a lot of `B`, some `E
 - **AC-NFR-02.1** Images declare dimensions and are served as WebP renditions sized to the
   viewport via `srcset`.
 - **AC-NFR-02.2** Below-the-fold images lazy-load; the LCP image does not.
-- **AC-NFR-02.3** An album page meets the agreed LCP/CLS budget (numbers fixed in Phase 2
-  step 8).
+- **AC-NFR-02.3** An album page meets the fixed budget: LCP ≤ 2.5 s, CLS ≤ 0.1 and TBT ≤ 200 ms
+  on mobile (see `TEST-STRATEGY.md` §3.7).
 
 ### UC-NFR-03 — SEO
 **Levels** `B`
@@ -451,13 +442,15 @@ debounce.** Rationale and the debounce alternative are in `ARCHITECTURE.md` §7.
    between a CI status link and a polled status endpoint.
 **Answer: Include the build/deploy date on the frontend/ footer**
 
-7. **Category publish has no dedicated endpoint** (unlike albums' `/publish`). Toggling
-   `published` requires a full `PUT`. Either accept it or add
-   `PATCH /admin/categories/{id}/publish` for symmetry.
-**Answer: Add the PATCH on the contract**
+7. **Tag publish/unpublish.** `PATCH /admin/tags/{id}/publish` exists in the contract;
+   unpublished tags are hidden from public lists/pickers but do not hide albums. Tag creation
+   happens inline from the album form; the PoC has no separate tag-management use case.
+**Answer: Contract keeps the endpoint; tag management is inline only (no separate management
+screen).**
 
-8. **Slug changes break live URLs.** Renaming an album/category changes its public path. For the
-   PoC: accept it (documented), or add redirects. Affects AC-ADM-03.5/04.4.
+8. **Slug changes break live URLs.** Renaming an album or tag changes its public path (the album
+   route or the `?tag=` filter link). For the PoC: accept it (documented), or add redirects.
+   Affects AC-ADM-04.11.
 **Answer: Accept**
 
 9. **Alt text and publishing.** Should a photo be **unpublishable** while `altText` is empty
@@ -478,8 +471,8 @@ owns the test.
 | Use case | OpenAPI operation(s) | Level | Phase |
 |---|---|---|---|
 | UC-VIS-01 Home | `listPublicAlbums` | B | 8 |
-| UC-VIS-02 Gallery index | `listPublicCategories` | B/C | 8 |
-| UC-VIS-03 Category page | `listPublicAlbums` (`category`) | B | 8 |
+| UC-VIS-02 Gallery index | `listPublicAlbums`, `listPublicTags` | B/C | 8 |
+| UC-VIS-03 Tag filter | `listPublicAlbums` (`tag`) | B/E | 8 |
 | UC-VIS-04 Album page | `getPublicAlbum`, `listPublicAlbumPhotos` | B/P | 8 |
 | UC-VIS-05 Lightbox | — (client only) | E/A | 8, 9 |
 | UC-VIS-06 About | — (static) | B | 8 |
@@ -488,8 +481,7 @@ owns the test.
 | UC-VIS-09 Image loading | `/media/{photoId}/{name}` | B/P | 8, 9 |
 | UC-ADM-01 Login | `login` | I/E | 4, 5 |
 | UC-ADM-02 Session | `refreshToken` | I/E | 4, 5 |
-| UC-ADM-03 Categories | `createCategory`, `reorderCategories`, `updateCategory`, `setCategoryPublished`, `deleteCategory`, `listAdminCategories` | I/E | 4, 5 |
-| UC-ADM-04 Albums | `createAlbum`, `listAdminAlbums`, `getAdminAlbum`, `updateAlbum`, `deleteAlbum`, `setAlbumPublished`, `listAdminAlbumPhotos` | I/E | 4, 5 |
+| UC-ADM-04 Albums | `createAlbum`, `createTag` (inline), `listAdminAlbums`, `getAdminAlbum`, `updateAlbum`, `deleteAlbum`, `setAlbumPublished`, `listAdminAlbumPhotos` | I/E | 4, 5 |
 | UC-ADM-05 Upload | `uploadPhotos` + media pipeline | U/I/E | 3, 4, 5 |
 | UC-ADM-06 Photo edit | `updatePhoto` | I/E | 4, 5 |
 | UC-ADM-07 Reorder photos | `reorderPhotos` | I/E | 4, 5 |
@@ -514,4 +506,6 @@ owns the test.
 
 **Coverage gaps to close:** the criteria marked `C` are deferred (§7 #10); UC-VIS-05/08 and
 UC-ADM-12/13 have no contract operation by design and are UI-only. `AC-ADM-11.2` (footer build
-date) is a Phase 8 build-output concern.
+date) is a Phase 8 build-output concern. After UC-ADM-03 was retired, the tag lifecycle
+endpoints (`reorderTags`, `updateTag`, `deleteTag`, `setTagPublished`) have no dedicated UI
+scenario; `createTag` is covered inline by UC-ADM-04.
